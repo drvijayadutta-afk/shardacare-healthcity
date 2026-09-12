@@ -1,0 +1,593 @@
+{
+  "metadata": {
+    "source": "Job_list_10th_Sept_3.docx",
+    "date_created": "2026-09-10",
+    "organization": "Sharda Hospital",
+    "version": "1.0"
+  },
+  "jobs": [
+    {
+      "id": "job_001",
+      "category": "Marketing - Cardiac",
+      "title": "Cardiac Campaign",
+      "tasks": [
+        {
+          "task_id": "task_001_1",
+          "description": "newspaper ad: hindi & English",
+          "owner": "Love",
+          "status": "closed",
+          "deadline": "2026-09-10"
+        },
+        {
+          "task_id": "task_001_2",
+          "description": "Whatsapp",
+          "owner": "Nasir",
+          "status": "closed",
+          "deadline": "2026-09-10"
+        },
+        {
+          "task_id": "task_001_3",
+          "description": "Emailer",
+          "owner": "Love",
+          "status": "closed",
+          "deadline": "2026-09-10"
+        },
+        {
+          "task_id": "task_001_4",
+          "description": "Flyer",
+          "owner": "Love",
+          "status": "pending",
+          "deadline": "2026-09-10"
+        },
+        {
+          "task_id": "task_001_5",
+          "description": "Meta Ad",
+          "owner": "Nasir",
+          "status": "closed",
+          "deadline": "2026-09-10"
+        }
+      ]
+    },
+    {
+      "id": "job_002",
+      "category": "Marketing - Neuro Fast",
+      "title": "Sales emailer Neuro Fast",
+      "tasks": [
+        {
+          "task_id": "task_002_1",
+          "description": "Sales emailer",
+          "owners": ["Love", "Shreyak"],
+          "status": "in_progress",
+          "deadline": "2026-09-10"
+        }
+      ]
+    },
+    {
+      "id": "job_003",
+      "category": "Video - Film",
+      "title": "ShardaCare hai na film",
+      "tasks": [
+        {
+          "task_id": "task_003_1",
+          "description": "ShardaCare hai na film production",
+          "owner": "Anshika",
+          "status": "in_progress",
+          "deadline": "2026-09-10",
+          "deadline_time": "11:00 AM"
+        }
+      ]
+    },
+    {
+      "id": "job_004",
+      "category": "Campaign - Mother & Child",
+      "title": "Mother & child camp campaign",
+      "tasks": [
+        {
+          "task_id": "task_004_1",
+          "description": "newspaper ad",
+          "owner": "Vivek",
+          "status": "in_progress",
+          "deadline": "2026-09-26"
+        },
+        {
+          "task_id": "task_004_2",
+          "description": "Whatsapp",
+          "owner": "Vivek",
+          "status": "in_progress",
+          "deadline": "2026-09-26"
+        },
+        {
+          "task_id": "task_004_3",
+          "description": "Emailer",
+          "owner": "Vivek",
+          "status": "in_progress",
+          "deadline": "2026-09-26"
+        },
+        {
+          "task_id": "task_004_4",
+          "description": "Flyer",
+          "owner": "Vivek",
+          "status": "in_progress",
+          "deadline": "2026-09-26"
+        },
+        {
+          "task_id": "task_004_5",
+          "description": "P1 Meta creative",
+          "owner": "Vivek",
+          "status": "in_progress",
+          "deadline": "2026-09-10"
+        }
+      ]
+    },
+    {
+      "id": "job_005",
+      "category": "Video Content",
+      "title": "Dr. Tarang - Walk Through Video",
+      "tasks": [
+        {
+          "task_id": "task_005_1",
+          "description": "discuss the requirement",
+          "owner": "Dr. Tarang",
+          "status": "in_progress",
+          "deadline": "2026-09-09"
+        },
+        {
+          "task_id": "task_005_2",
+          "description": "Walk Through Video",
+          "owner": "Himanshu",
+          "status": "in_progress",
+          "deadline": "2026-09-09"
+        }
+      ]
+    },
+    {
+      "id": "job_006",
+      "category": "Photography - Lab",
+      "title": "Lab images",
+      "tasks": [
+        {
+          "task_id": "task_006_1",
+          "description": "Lab images",
+          "owners": ["Himanshu", "Vidisha"],
+          "status": "in_progress",
+          "deadline": "2026-09-10"
+        }
+      ]
+    },
+    {
+      "id": "job_007",
+      "category": "Document Review",
+      "title": "Physio requirements",
+      "tasks": [
+        {
+          "task_id": "task_007_1",
+          "description": "read document",
+          "owners": ["Jaggi", "Vijaya"],
+          "status": "in_progress",
+          "deadline": "2026-09-10"
+        }
+      ]
+    },
+    {
+      "id": "job_008",
+      "category": "Marketing - World Heart Day",
+      "title": "World heart day newspaper ad",
+      "tasks": [
+        {
+          "task_id": "task_008_1",
+          "description": "World heart day newspaper ad (half advertorial half ad) content",
+          "owner": "Vijaya",
+          "status": "in_progress",
+          "deadline": "2026-09-10"
+        }
+      ]
+    },
+    {
+      "id": "job_009",
+      "category": "Design - NABH",
+      "title": "NABH Signages",
+      "tasks": [
+        {
+          "task_id": "task_009_1",
+          "description": "NABH Signages design",
+          "owners": ["Nirmal", "Mudit", "Shreyak"],
+          "status": "in_progress",
+          "deadline": "2026-09-10"
+        }
+      ]
+    },
+    {
+      "id": "job_010",
+      "category": "Print - Booklet",
+      "title": "Stroke booklet",
+      "tasks": [
+        {
+          "task_id": "task_010_1",
+          "description": "release; get it approved by atampreet: total solutions",
+          "owner": "Atampreet",
+          "status": "in_progress",
+          "deadline": "2026-09-10"
+        },
+        {
+          "task_id": "task_010_2",
+          "description": "maker-checker approval",
+          "owner": "Vijaya",
+          "status": "sent_for_printing",
+          "deadline": "2026-09-10"
+        }
+      ]
+    },
+    {
+      "id": "job_011",
+      "category": "Print - Brochure",
+      "title": "Maxwell brochure",
+      "tasks": [
+        {
+          "task_id": "task_011_1",
+          "description": "Maxwell brochure",
+          "owners": ["Vivek", "Vijaya"],
+          "status": "sent_to_approval",
+          "deadline": "2026-09-08",
+          "notes": "sent to Akshay for approval on 2026-09-09"
+        }
+      ]
+    },
+    {
+      "id": "job_012",
+      "category": "Signage - Hoarding",
+      "title": "KTP now available at sharda hospital - gate 1 hoarding",
+      "tasks": [
+        {
+          "task_id": "task_012_1",
+          "description": "KTP now available at sharda hospital: gate 1 hoarding",
+          "owner": "Nasir",
+          "status": "sent_to_review",
+          "deadline": "2026-09-10",
+          "notes": "sent to Nirmal and MS"
+        }
+      ]
+    },
+    {
+      "id": "job_013",
+      "category": "Marketing - PIL IUI",
+      "title": "PIL IUI Campaign",
+      "tasks": [
+        {
+          "task_id": "task_013_1",
+          "description": "PIL IUI campaign",
+          "owner": "Jaggi",
+          "status": "in_progress",
+          "deadline": "2026-09-12"
+        }
+      ]
+    },
+    {
+      "id": "job_014",
+      "category": "Print - Sandwich Posters",
+      "title": "Sandwich posters",
+      "tasks": [
+        {
+          "task_id": "task_014_1",
+          "description": "Sandwich posters: Pulmonary, Gastro, nephro",
+          "owner": "Jaggi",
+          "status": "closed",
+          "deadline": "2026-09-10"
+        }
+      ]
+    },
+    {
+      "id": "job_015",
+      "category": "Design - Wall of Fame",
+      "title": "Wall of fame",
+      "tasks": [
+        {
+          "task_id": "task_015_1",
+          "description": "Wall of fame options",
+          "owner": "Jaggi",
+          "status": "approval_pending",
+          "deadline": "2026-09-09",
+          "notes": "options shared with Parul ma'am, approval pending"
+        }
+      ]
+    },
+    {
+      "id": "job_016",
+      "category": "Design - Green Belt",
+      "title": "Green belt design approval and costing",
+      "tasks": [
+        {
+          "task_id": "task_016_1",
+          "description": "Green belt design approval and costing",
+          "status": "costing_sent",
+          "deadline": "2026-09-09",
+          "notes": "costing sent to purchase"
+        }
+      ]
+    },
+    {
+      "id": "job_017",
+      "category": "Design - Roundabout",
+      "title": "Roundabout creatives: flagpoles",
+      "tasks": [
+        {
+          "task_id": "task_017_1",
+          "description": "Roundabout creatives: flagpoles",
+          "owner": "Jaggi",
+          "status": "in_progress",
+          "deadline": "2026-09-10"
+        }
+      ]
+    },
+    {
+      "id": "job_018",
+      "category": "Video - YK sir",
+      "title": "YK sir Grandson video",
+      "tasks": [
+        {
+          "task_id": "task_018_1",
+          "description": "YK sir Grandson video",
+          "owners": ["Anshika", "Vidisha"],
+          "status": "closed",
+          "deadline": "2026-09-09"
+        }
+      ]
+    },
+    {
+      "id": "job_019",
+      "category": "Branding - Ayushman Bharat",
+      "title": "Ayushman Bharat Branding Sharda Hospital",
+      "tasks": [
+        {
+          "task_id": "task_019_1",
+          "description": "Ayushman Bharat Branding",
+          "owners": ["Nasir", "Nirmal"],
+          "status": "in_progress",
+          "deadline": "2026-09-10"
+        }
+      ]
+    },
+    {
+      "id": "job_020",
+      "category": "Print - Ayushman Event",
+      "title": "Printing Collateral Ayushman Event",
+      "tasks": [
+        {
+          "task_id": "task_020_1",
+          "description": "Printing Collateral Ayushman Event",
+          "owner": "Nasir",
+          "status": "closed",
+          "deadline": "2026-09-10"
+        }
+      ]
+    },
+    {
+      "id": "job_021",
+      "category": "Branding - Dr. Lipi Clinic",
+      "title": "Dr. Lipi Clinic branding",
+      "tasks": [
+        {
+          "task_id": "task_021_1",
+          "description": "Dr. Lipi Clinic branding",
+          "owner": "Nirmal",
+          "status": "vendor_aligned",
+          "deadline": "2026-09-10"
+        }
+      ]
+    },
+    {
+      "id": "job_022",
+      "category": "Branding - Dr. Ruchi & Dr. Ravindra Clinic",
+      "title": "Dr. Ruchi & Dr. Ravindra Clinic Branding",
+      "tasks": [
+        {
+          "task_id": "task_022_1",
+          "description": "Dr. Ruchi & Dr. Ravindra Clinic Branding",
+          "owner": "Nirmal",
+          "status": "in_progress",
+          "deadline": "2026-09-10"
+        }
+      ]
+    },
+    {
+      "id": "job_023",
+      "category": "Branding - Dr. Avinash Clinic",
+      "title": "Dr Avinash clinic branding",
+      "tasks": [
+        {
+          "task_id": "task_023_1",
+          "description": "Dr Avinash clinic branding",
+          "owner": "Shreyak",
+          "status": "in_progress",
+          "deadline": "2026-09-10"
+        }
+      ]
+    },
+    {
+      "id": "job_024",
+      "category": "Branding - Dr. Vivek Yadav Clinic",
+      "title": "Dr. Vivek Yadav Clinic Branding",
+      "tasks": [
+        {
+          "task_id": "task_024_1",
+          "description": "Dr. Vivek Yadav Clinic Branding",
+          "owner": "Nirmal",
+          "status": "recce_pending",
+          "deadline": "2026-09-11",
+          "notes": "vendor aligned for 11th sept"
+        }
+      ]
+    },
+    {
+      "id": "job_025",
+      "category": "Marketing - Dibrugarh",
+      "title": "Dibrugarh Flyer",
+      "tasks": [
+        {
+          "task_id": "task_025_1",
+          "description": "Dibrugarh Flyer",
+          "owner": "Vivek",
+          "status": "in_progress",
+          "deadline": "2026-09-10"
+        }
+      ]
+    },
+    {
+      "id": "job_026",
+      "category": "Marketing - Outstation",
+      "title": "Outstation Hoarding",
+      "tasks": [
+        {
+          "task_id": "task_026_1",
+          "description": "Outstation Hoarding",
+          "owner": "Sushant",
+          "status": "in_progress",
+          "deadline": "2026-09-10"
+        }
+      ]
+    },
+    {
+      "id": "job_027",
+      "category": "Tracking - PILs",
+      "title": "PILs tracker",
+      "tasks": [
+        {
+          "task_id": "task_027_1",
+          "description": "PILs tracker",
+          "owners": ["Nirmal", "Shreyak"],
+          "status": "in_progress",
+          "deadline": "2026-09-11"
+        }
+      ]
+    },
+    {
+      "id": "job_028",
+      "category": "Print - Dr. Pallav Mishra",
+      "title": "Dr Pallav Mishra printing collaterals",
+      "tasks": [
+        {
+          "task_id": "task_028_1",
+          "description": "Dr Pallav Mishra printing collaterals",
+          "owners": ["Love", "Nirmal"],
+          "status": "in_progress",
+          "deadline": "2026-09-11"
+        }
+      ]
+    },
+    {
+      "id": "job_029",
+      "category": "Print - Brochure",
+      "title": "Brochure – International and Master",
+      "tasks": [
+        {
+          "task_id": "task_029_1",
+          "description": "Brochure – International and Master",
+          "owner": "Jaggi",
+          "status": "in_progress",
+          "deadline": "2026-09-17",
+          "notes": "next week"
+        }
+      ]
+    },
+    {
+      "id": "job_030",
+      "category": "Campaign - Sepsis Week",
+      "title": "Sepsis Week",
+      "tasks": [
+        {
+          "task_id": "task_030_1",
+          "description": "Sepsis Week - Banners",
+          "owners": ["Nishith", "Nirmal", "Nasir"],
+          "status": "in_progress",
+          "deadline": "2026-09-10"
+        },
+        {
+          "task_id": "task_030_2",
+          "description": "Sepsis Week - digital standees",
+          "owners": ["Nishith", "Nirmal", "Nasir"],
+          "status": "in_progress",
+          "deadline": "2026-09-10"
+        },
+        {
+          "task_id": "task_030_3",
+          "description": "Sepsis Week - selfie booth",
+          "owners": ["Nishith", "Nirmal", "Nasir"],
+          "status": "in_progress",
+          "deadline": "2026-09-10"
+        },
+        {
+          "task_id": "task_030_4",
+          "description": "Sepsis Week - emailer",
+          "owners": ["Nishith", "Nirmal", "Nasir"],
+          "status": "in_progress",
+          "deadline": "2026-09-10"
+        }
+      ]
+    }
+  ],
+  "team_members": [
+    {
+      "name": "Anshika",
+      "role": "Content Creator / Video Producer"
+    },
+    {
+      "name": "Jaggi",
+      "role": "Design / Collateral"
+    },
+    {
+      "name": "Himanshu",
+      "role": "Video Production"
+    },
+    {
+      "name": "Vidisha",
+      "role": "Video / Photography"
+    },
+    {
+      "name": "Vijaya",
+      "role": "Content / Approval"
+    },
+    {
+      "name": "Love",
+      "role": "Marketing / Creative"
+    },
+    {
+      "name": "Shreyak",
+      "role": "Design / Creative"
+    },
+    {
+      "name": "Vivek",
+      "role": "Campaign Manager / Creative"
+    },
+    {
+      "name": "Nasir",
+      "role": "Design / Signage"
+    },
+    {
+      "name": "Nirmal",
+      "role": "Design / Branding"
+    },
+    {
+      "name": "Mudit",
+      "role": "Design"
+    },
+    {
+      "name": "Nishith",
+      "role": "Campaign Coordinator"
+    },
+    {
+      "name": "Sushant",
+      "role": "Design / Hoarding"
+    },
+    {
+      "name": "Atampreet",
+      "role": "Approval Authority"
+    },
+    {
+      "name": "Parul",
+      "role": "Approval Authority"
+    },
+    {
+      "name": "Akshay",
+      "role": "Approval Authority"
+    }
+  ]
+}
