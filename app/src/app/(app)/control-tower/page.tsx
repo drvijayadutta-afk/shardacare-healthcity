@@ -82,14 +82,8 @@ export default async function ControlTowerPage() {
 
   // A manager's own queue belongs on the same page as everyone else's. Having
   // to switch to My Work to see it makes this a report rather than a console.
-  const [mine, allWork] = await Promise.all([
-    supabase.from('v_my_tasks').select('*')
-      .order('effective_due_date', { ascending: true, nullsFirst: false }),
-    supabase.from('v_work_items').select('*')
-      .not('status', 'in', '(COMPLETED,CANCELLED,REJECTED)')
-      .order('stage_deadline', { ascending: true, nullsFirst: false })
-      .limit(100),
-  ]);
+  const mine = await supabase.from('v_my_tasks').select('*')
+    .order('effective_due_date', { ascending: true, nullsFirst: false });
 
   // Every query is checked, not just the metrics one. A failing breakdown RPC
   // returns no rows, which would otherwise render as the panel's empty state --
@@ -105,7 +99,6 @@ export default async function ControlTowerPage() {
       ['critical work query', critical.error],
       ['upcoming deadlines query', upcoming.error],
       ['your queue', mine.error],
-      ['all work query', allWork.error],
     ] as const
   ).filter(([, err]) => err);
 
@@ -323,61 +316,6 @@ export default async function ControlTowerPage() {
           ) : <Empty>No purchase orders outstanding.</Empty>}
         </Panel>
       </div>
-
-      <Panel
-        title="All active work"
-        subtitle={`Every open item across the team${
-          (allWork.data?.length ?? 0) >= 100 ? ' — first 100' : ''
-        }`}
-      >
-        {allWork.data?.length ? (
-          <div className="-mx-5 overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200 text-sm">
-              <thead>
-                <tr className="text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                  <th scope="col" className="px-5 py-2">Work</th>
-                  <th scope="col" className="px-3 py-2">Stage</th>
-                  <th scope="col" className="px-3 py-2">Owner</th>
-                  <th scope="col" className="px-3 py-2">Pending With</th>
-                  <th scope="col" className="px-3 py-2">Due</th>
-                  <th scope="col" className="px-3 py-2">Days</th>
-                  <th scope="col" className="px-3 py-2">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {allWork.data.map((w) => (
-                  <tr key={w.id} className="hover:bg-slate-50">
-                    <td className="px-5 py-2">
-                      <Link href={`/work/${w.id}`}
-                        className="font-medium text-slate-900 underline-offset-2 hover:underline">
-                        {w.name}
-                      </Link>
-                    </td>
-                    <td className="px-3 py-2 text-slate-600">{humanise(w.stage_name)}</td>
-                    <td className="px-3 py-2 text-slate-600">{w.owner_name ?? DASH}</td>
-                    <td className="px-3 py-2 text-slate-600">
-                      <span className={w.pending_with === 'unassigned' || w.pending_with === 'unknown'
-                        ? 'text-amber-700' : ''}>{w.pending_with ?? DASH}</span>
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-slate-600">
-                      {formatDate(w.stage_deadline ?? w.deadline)}
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      <span className={w.is_overdue ? 'font-medium text-red-700' : 'text-slate-600'}>
-                        {formatDaysRemaining(w.days_remaining)}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2"><StatusBadge status={w.status} /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <Empty>No open work. If you expected the imported job list here, the
-            seed has not run — see database/supabase-bundle/00_diagnose.sql.</Empty>
-        )}
-      </Panel>
 
       <Panel title="Upcoming deadlines" subtitle="Next ten, soonest first">
         {upcoming.data?.length ? (

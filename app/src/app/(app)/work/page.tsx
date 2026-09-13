@@ -2,7 +2,9 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { StatusBadge, PriorityBadge, OverdueBadge } from '@/components/Badges';
 import { formatDate, formatDaysRemaining, humanise, DASH } from '@/lib/format';
-import { FILTERS, isFilterKey, applyFilter, applyOwnerFilter, type FilterKey } from '@/lib/workflow/filters';
+import {
+  FILTERS, PRIMARY_FILTERS, isFilterKey, applyFilter, applyOwnerFilter, type FilterKey,
+} from '@/lib/workflow/filters';
 import type { WorkItemRow } from '@/types/work';
 
 export const dynamic = 'force-dynamic';
@@ -41,8 +43,10 @@ export default async function WorkListPage({
         </p>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-1.5">
-        {(Object.keys(FILTERS) as FilterKey[]).map((k) => (
+      {(() => {
+        const secondary = (Object.keys(FILTERS) as FilterKey[])
+          .filter((k) => !PRIMARY_FILTERS.includes(k));
+        const chip = (k: FilterKey) => (
           <Link
             key={k} href={`/work?filter=${k}`}
             className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${
@@ -51,8 +55,25 @@ export default async function WorkListPage({
                 : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'}`}>
             {FILTERS[k]}
           </Link>
-        ))}
-      </div>
+        );
+        return (
+          <div className="mb-4">
+            <div className="flex flex-wrap gap-1.5">
+              {PRIMARY_FILTERS.map(chip)}
+            </div>
+            {/* Open by default when the active filter is one of the "more" ones,
+                so landing here from a link never hides which filter is applied. */}
+            <details className="mt-1.5" open={secondary.includes(filter)}>
+              <summary className="cursor-pointer text-xs font-medium text-slate-500 hover:text-slate-700">
+                More filters
+              </summary>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {secondary.map(chip)}
+              </div>
+            </details>
+          </div>
+        );
+      })()}
 
       {error ? (
         <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">

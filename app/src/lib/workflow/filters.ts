@@ -31,6 +31,18 @@ export function isFilterKey(v: string | undefined): v is FilterKey {
   return !!v && v in FILTERS;
 }
 
+/**
+ * The chips shown by default on the Work list. Everything else in FILTERS
+ * still works (it's a real query param either way) but sits behind "More
+ * filters" — twelve equal-weight pills in one row made every filter look
+ * equally important, when in practice these seven cover what a manager
+ * reaches for on an ordinary day.
+ */
+export const PRIMARY_FILTERS: readonly FilterKey[] = [
+  'active', 'overdue', 'due_today', 'due_this_week',
+  'awaiting_approval', 'po_pending', 'blocked',
+];
+
 function isoDaysFromNow(days: number): string {
   const d = new Date();
   d.setDate(d.getDate() + days);
