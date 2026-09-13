@@ -1,64 +1,65 @@
-# Sharda Hospital HealthCity - Job List Dataset
+# Marketing Workflow Control Tower
 
-## Overview
+Internal work allocation and handoff system for the Sharda Hospital
+marketing/creative team. A person receives work, submits it, and the system
+advances the workflow stage and assigns the next person automatically.
 
-This repository contains the initial dataset for Sharda Hospital's HealthCity project, initialized from the job list dated September 10th, 2026.
+## Layout
 
-## Dataset Source
+**The Next.js app is in `app/`, not at the repository root.** Anything building
+this project must be pointed there — a build run at the root finds no
+`package.json` and silently produces nothing. See `database/DEPLOY.md`.
 
-**Source Document:** Job_list_10th_Sept_3.docx  
-**Date:** September 10th, 2026  
-**Organization:** Sharda Hospital
+```
+app/                        Next.js 16 application
+  src/app/(app)/            my-work, work/[id], work, control-tower
+  src/lib/workflow/         server actions wrapping the handoff functions
+  supabase/migrations/      the schema — SOURCE OF TRUTH
+  supabase/testing/         SQL test suites (local Postgres, not Supabase)
+  scripts/build-seed.mjs    regenerates the seed from the source job list
+database/
+  supabase-bundle/          the migrations concatenated for the Supabase SQL Editor
+  SETUP.md                  applying the schema
+  DEPLOY.md                 deploying to Vercel
+  SEED_REVIEW.md            every place the source document was unclear
+```
 
-## Data Structure
+## Getting it running
 
-### jobs_dataset.json
+1. `database/DEPLOY.md` — deployment and environment variables
+2. `database/SETUP.md` — apply the schema and seed to Supabase
+3. `database/SEED_REVIEW.md` — **read before seeding**; it lists 76 flags and two
+   assumptions that change the data if they are wrong
 
-A comprehensive JSON file containing:
+Local development:
 
-- **Metadata:** Source document, creation date, organization, and version information
-- **Jobs:** 30 main job entries (projects/campaigns)
-  - Each job contains multiple tasks with specific ownership and status
-  - Tasks include: descriptions, assigned owners, status, and deadlines
-  - Status values: `closed`, `pending`, `in_progress`, `sent_to_approval`, `approval_pending`, `vendor_aligned`, `recce_pending`, `costing_sent`, `sent_for_printing`, `sent_to_review`
-- **Team Members:** 16 team members with their names and roles as documented
+```bash
+cd app
+cp .env.local.example .env.local   # then add the anon key
+npm install
+npm run dev
+```
 
-## Key Information Preserved
+## How the workflow is configured
 
-- **Original terminology** from the source document
-- **Ownership details** with both single and multiple owner assignments
-- **Status tracking** for each task
-- **Deadlines** in ISO 8601 format (YYYY-MM-DD)
-- **Special notes** for tasks with additional context (e.g., approval dependencies, vendor coordination)
+Stages, transitions, SLAs and approval routing are **rows, not code**. The engine
+resolves the next assignee by querying `approval_authorities` and never branches
+on a stage name, so approvers and deadlines change without a deploy.
 
-## Job Categories
+The 11-stage flow and its procurement detour are defined in
+`app/supabase/migrations/0008_default_workflow.sql`.
 
-The dataset includes jobs across these categories:
-- Marketing campaigns (Cardiac, Neuro Fast, Mother & Child, etc.)
-- Video content and production
-- Photography and lab images
-- Design and signage
-- Branding for clinics
-- Print collateral
-- Campaign coordination (Ayushman Bharat, Sepsis Week, World Heart Day)
+## Tests
 
-## Team Members Involved
+```bash
+# needs a local Postgres; see the header of each file
+psql -f app/supabase/testing/00_auth_shim.sql   # stands in for Supabase's auth schema
+psql -f app/supabase/testing/01_smoke_test.sql  # handoff engine, 10 cases
+psql -f app/supabase/testing/02_workflow_test.sql  # full 11-stage walk, both PO branches
+```
 
-- **Content & Video:** Anshika, Himanshu, Vidisha
-- **Design & Creative:** Jaggi, Nirmal, Mudit, Shreyak, Nasir, Love
-- **Campaign & Marketing:** Vivek, Sushant, Nishith
-- **Content & Approval:** Vijaya, Atampreet, Parul, Akshay
+## Known state
 
-## Usage
-
-This dataset can be imported into:
-- Project management databases
-- Task tracking systems
-- Team assignment platforms
-- Healthcare marketing management systems
-
-## Notes
-
-- All data preserves the original terminology and ownership from the source document
-- No information has been invented or modified from the source
-- Dates are based on the document's September 2026 timeline
+The schema, handoff engine and seed are verified against real Postgres. The
+pages are compile-verified only — at the time of writing they have never
+rendered a row from a live database.
