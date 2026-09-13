@@ -193,3 +193,146 @@ export async function addComment(
   revalidatePath(`/work/${workItemId}`);
   return { ok: true, message: 'Comment added.' };
 }
+
+/* -------------------------------------------------------------------------- */
+/* Creating work                                                              */
+/* -------------------------------------------------------------------------- */
+
+export interface NewWorkInput {
+  title: string;
+  description?: string;
+  category?: string;
+  requestedBy?: string;
+  priority: string;
+  deadline?: string;
+  poRequired: boolean;
+  contentWriterId?: string;
+  designerId?: string;
+  releaserId?: string;
+}
+
+/**
+ * Create a job, its first work item, and the first task.
+ *
+ * The people chosen here are what makes the rest automatic:
+ * resolve_next_assignee looks for a work_item_owners row whose holder has the
+ * stage's expected role, so naming the writer and designer up front is all the
+ * routing needs. Every handoff after this one is the engine's.
+ */
+export async function createWork(input: NewWorkInput): Promise<ActionResult> {
+  if (!input.title?.trim()) {
+    return { ok: false, message: 'Give the work a name.' };
+  }
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, message: 'Your session has expired. Sign in again.' };
+
+  // Default workflow, first stage.
+  const { data: wf, error: wfErr } = await supabase
+    .from('workflow_templates')
+    .select('id, workflow_stages(id, name, stage_order)')
+    .eq('is_default', true)
+    .maybeSingle();
+
+  if (wfErr) return { ok: false, message: wfErr.message };
+  if (!wf) {
+    return {
+      ok: false,
+      message: 'No default workflow is configured. Run the schema migrations — 0012 defines it.',
+    };
+  }
+
+  type Stage = { id: string; name: string; stage_order: number };
+  const stages = ((wf.workflow_stages ?? []) as unknown as Stage[])
+    .sort((a, b) => a.stage_order - b.stage_order);
+  const first = stages[0];
+  if (!first) return { ok: false, message: 'The default workflow has no stages.' };
+
+  const { data: job, error: jobErr } = await supabase
+    .from('jobs')
+    .insert({
+      name: input.title.trim(),
+      description: input.description?.trim() || null,
+      category: input.category?.trim() || null,
+      created_by: user.id,
+      requester_id: user.id,
+    })
+    .select('id')
+    .single();
+
+  if (jobErr) return { ok: false, message: jobErr.message };
+
+  const { data: work, error: workErr } = await supabase
+    .from('work_items')
+    .insert({
+      job_id: job.id,
+      workflow_id: wf.id,
+      current_stage_id: first.id,
+      name: input.title.trim(),
+      // Who asked for it, recorded as text: leadership and doctors do not have
+      // accounts, and creating one for them would be inventing a user.
+      description: input.requestedBy?.trim()
+        ? `Requested by ${input.requestedBy.trim()}${input.description?.trim() ? `\n\n${input.description.trim()}` : ''}`
+        : input.description?.trim() || null,
+      status: 'IN_PROGRESS',
+      priority: input.priority,
+      deadline: input.deadline || null,
+      po_required: input.poRequired,
+      po_status: input.poRequired ? 'NOT_STARTED' : 'NOT_REQUIRED',
+      owner_id: user.id,
+      current_assignee_id: user.id,
+      pending_with_id: user.id,
+      created_by: user.id,
+      requester_id: user.id,
+    })
+    .select('id')
+    .single();
+
+  if (workErr) return { ok: false, message: workErr.message };
+
+  // The people the engine will route to. Duplicates are dropped: one person
+  // may hold more than one of these roles.
+  const owners = [
+    { id: user.id, role: 'PRIMARY' },
+    ...[input.contentWriterId, input.designerId, input.releaserId]
+      .filter((id): id is string => !!id && id !== user.id)
+      .map((id) => ({ id, role: 'COLLABORATOR' })),
+  ];
+  const seen = new Set<string>();
+  const rows = owners
+    .filter((o) => !seen.has(o.id) && seen.add(o.id))
+    .map((o) => ({ work_item_id: work.id, user_id: o.id, owner_role: o.role }));
+
+  const { error: ownerErr } = await supabase.from('work_item_owners').insert(rows);
+  if (ownerErr) return { ok: false, message: ownerErr.message };
+
+  const { error: taskErr } = await supabase.from('tasks').insert({
+    work_item_id: work.id,
+    stage_id: first.id,
+    assignee_id: user.id,
+    assigned_by: user.id,
+    title: `${input.title.trim()} — ${first.name.replace(/_/g, ' ').toLowerCase()}`,
+    action_type: 'COMPLETE_STAGE',
+    priority: input.priority,
+    due_date: input.deadline || null,
+  });
+  if (taskErr) return { ok: false, message: taskErr.message };
+
+  await supabase.from('activity_log').insert({
+    work_item_id: work.id,
+    actor_id: user.id,
+    action: 'CREATED',
+    to_value: first.name,
+  });
+
+  revalidatePath('/my-work');
+  revalidatePath('/control-tower');
+  revalidatePath('/work');
+
+  return {
+    ok: true,
+    message: 'Created.',
+    detail: { workItemId: work.id, stage: first.name },
+  };
+}

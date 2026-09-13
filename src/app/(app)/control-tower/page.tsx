@@ -140,10 +140,18 @@ export default async function ControlTowerPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">Control Tower</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Every number is a live count. Click one to open exactly those items.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-semibold text-slate-900">Control Tower</h1>
+            <p className="mt-1 text-sm text-slate-500">
+              Every number is a live count. Click one to open exactly those items.
+            </p>
+          </div>
+          <Link href="/work/new"
+            className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">
+            Add work
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
