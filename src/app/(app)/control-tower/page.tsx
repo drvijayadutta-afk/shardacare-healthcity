@@ -80,11 +80,44 @@ export default async function ControlTowerPage() {
         .order('stage_deadline', { ascending: true }).limit(10),
     ]);
 
-  if (metricsRes.error) {
+  // Every query is checked, not just the metrics one. A failing breakdown RPC
+  // returns no rows, which would otherwise render as the panel's empty state --
+  // a dashboard confidently reporting "No open work" when it actually failed to
+  // ask. An empty panel must only ever mean a genuine zero-row result.
+  const failures = (
+    [
+      ['get_control_tower_metrics', metricsRes.error],
+      ['get_work_by_stage', byStage.error],
+      ['get_work_by_owner', byOwner.error],
+      ['get_approval_bottlenecks', approvals.error],
+      ['get_po_bottlenecks', poBlocks.error],
+      ['critical work query', critical.error],
+      ['upcoming deadlines query', upcoming.error],
+    ] as const
+  ).filter(([, err]) => err);
+
+  if (failures.length > 0) {
     return (
       <div className="rounded-md border border-red-200 bg-red-50 p-4">
-        <h1 className="font-medium text-red-800">Could not load metrics</h1>
-        <p className="mt-1 text-sm text-red-700">{metricsRes.error.message}</p>
+        <h1 className="font-medium text-red-800">
+          Could not load the Control Tower
+        </h1>
+        <p className="mt-2 text-sm text-red-700">
+          Showing an error rather than zeroes, because a dashboard that reports
+          &ldquo;no work&rdquo; when it failed to ask is worse than one that
+          refuses to render.
+        </p>
+        <ul className="mt-3 space-y-1 text-sm text-red-700">
+          {failures.map(([name, err]) => (
+            <li key={name}>
+              <span className="font-mono text-xs">{name}</span> — {err!.message}
+            </li>
+          ))}
+        </ul>
+        <p className="mt-3 text-xs text-red-600">
+          If these name missing functions, the schema is not fully applied. Run
+          database/supabase-bundle/01_schema.sql in the Supabase SQL editor.
+        </p>
       </div>
     );
   }

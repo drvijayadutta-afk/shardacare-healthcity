@@ -37,7 +37,7 @@ name and re-point the foreign keys — do not create a second row.
 ## 3. App environment
 
 ```bash
-cp app/.env.local.example app/.env.local
+cp .env.local.example .env.local
 ```
 
 Fill in `NEXT_PUBLIC_SUPABASE_ANON_KEY` from Project Settings → API.

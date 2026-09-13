@@ -32,6 +32,10 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ...but the example must be committable: it carries the project URL and the
+# warning never to add the service_role key, and both README and SETUP.md tell
+# you to copy it. Bare `.env*` silently excluded it.
+!.env*.example
 
 # vercel
 .vercel
