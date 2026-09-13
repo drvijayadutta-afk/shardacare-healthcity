@@ -126,6 +126,18 @@ export function diagnoseSupabaseEnv(): EnvProblem[] {
     });
   }
 
+  // A key copied from a wrapped display, or pasted through a field that folds
+  // long values, carries a space or newline in the MIDDLE. The outer trim above
+  // looks clean and the value looks right on screen, but it is not the key.
+  if (/\s/.test(anonKey.trim())) {
+    problems.push({
+      kind: 'key_shape',
+      detail:
+        'The key contains a space or line break inside it, which usually means ' +
+        'it was copied from a wrapped display. Re-copy it as one unbroken string.',
+    });
+  }
+
   const key = anonKey.trim();
   const isNewFormat = key.startsWith('sb_publishable_');
   const isSecretNewFormat = key.startsWith('sb_secret_');
@@ -170,10 +182,43 @@ export function diagnoseSupabaseEnv(): EnvProblem[] {
       kind: 'key_shape',
       detail:
         'The key is neither a JWT (three dot-separated parts, starting "eyJ") ' +
-        'nor a new-style key starting "sb_publishable_". It may be truncated — ' +
-        'check the whole value was pasted.',
+        'nor a new-style key starting "sb_publishable_". ' +
+        describeKeyShape(key),
     });
   }
 
   return problems;
+}
+
+/**
+ * Describe a key's shape without printing it.
+ *
+ * Enough to spot a truncated, quoted, or name-prefixed paste. Deliberately
+ * never reveals more than the first three characters: if someone has pasted a
+ * SECRET key here by mistake, this page must not become the thing that leaks
+ * it.
+ */
+function describeKeyShape(key: string): string {
+  const bits: string[] = [`It is ${key.length} characters long`];
+
+  if (key.length < 40) {
+    bits.push('which is far shorter than any real key — it looks truncated');
+  }
+  const dots = (key.match(/\./g) ?? []).length;
+  bits.push(`with ${dots} dot${dots === 1 ? '' : 's'} (a JWT has exactly 2)`);
+
+  if (/^["']|["']$/.test(key)) {
+    bits.push('and is wrapped in quotes — paste the value without them');
+  }
+  if (key.includes('=') && !key.startsWith('sb_')) {
+    bits.push(
+      'and contains "=" — if you pasted NAME=value, paste only the part after the "="',
+    );
+  }
+  if (key.toUpperCase().startsWith('NEXT_PUBLIC')) {
+    bits.push('and begins with the variable NAME rather than its value');
+  }
+  bits.push(`It starts "${key.slice(0, 3)}…"`);
+
+  return bits.join(', ') + '.';
 }

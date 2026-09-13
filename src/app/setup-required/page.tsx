@@ -23,11 +23,19 @@ export default async function SetupRequiredPage({
 }) {
   const { missing: raw } = await searchParams;
   const missing = (raw ?? '').split(',').filter(Boolean);
-  const isMissing = (n: string) => missing.length === 0 || missing.includes(n);
+  // Only the names actually reported missing are marked missing. Previously an
+  // empty list meant "everything", so a present-but-malformed key rendered as
+  // "not set" directly underneath a heading saying the variables WERE set.
 
   // When the variables ARE set but Supabase still rejects them, this says why.
-  const problems = diagnoseSupabaseEnv().filter((p) => p.kind !== 'missing');
-  const varsAreSet = missing.length === 0 && problems.length > 0;
+  const allProblems = diagnoseSupabaseEnv();
+  const problems = allProblems.filter((p) => p.kind !== 'missing');
+  const missingFromDiagnosis =
+    allProblems.find((p) => p.kind === 'missing')?.vars ?? [];
+  const varsAreSet = missingFromDiagnosis.length === 0;
+
+  const isMissing = (n: string) =>
+    missing.includes(n) || missingFromDiagnosis.includes(n);
 
   return (
     <main className="mx-auto max-w-xl px-4 py-16">
