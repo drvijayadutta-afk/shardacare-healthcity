@@ -3,7 +3,7 @@
 --
 -- Paste into the Supabase SQL Editor and Run. Idempotent: safe to re-run.
 -- Excludes the local auth shim; Supabase already provides auth.users/auth.uid().
--- Generated from supabase/migrations/ — edit there, not here.
+-- Generated from app/supabase/migrations/ — edit there, not here.
 -- ============================================================================
 
 

@@ -1,30 +1,28 @@
 # Deploying to Vercel
 
-## If your build says the Root Directory does not exist
+## Root Directory must be `app`
+
+The Next.js app lives in `app/`; `database/` and the docs are at the repository
+root. So Vercel needs:
+
+**Settings → Build and Deployment → Root Directory → `app`**
+
+If it is empty or wrong you get either a 404 on every path (Vercel found no
+framework at the root) or:
 
 > The specified Root Directory "app" does not exist. Please update your Project Settings.
 
-**Vercel → Settings → General → Root Directory → clear the field → Save → Redeploy.**
+which means the setting is right but the branch being deployed does not contain
+`app/` — check **Settings → Git → Production Branch**.
 
-An earlier version of this project kept the app in an `app/` subdirectory, and
-deployments from that era have Root Directory set to `app`. The app has since
-moved to the repository root and that directory no longer exists, so the setting
-now points at nothing. An empty field means the repository root, which is
-where Vercel should look.
-
-This cannot be fixed from `vercel.json` — Root Directory is a project setting
-only.
+Root Directory cannot be set from `vercel.json`; it is a project setting only.
 
 ## Layout
 
-The app sits at the repository root — `package.json`, `next.config.ts` and
-`src/` are all top level. Vercel detects Next.js automatically, so **no Root
-Directory setting is needed**.
-
-> Earlier the app lived in `app/`, which made Vercel build the repository root,
-> find no `package.json`, produce no output and return `404: NOT_FOUND` on every
-> path. Moving it to the root removed that failure mode rather than working
-> around it with a dashboard setting someone would have to remember.
+```
+app/        the Next.js application  (Vercel builds this)
+database/   SQL bundle and these docs
+```
 
 ## Environment variables — the one thing you must set
 
