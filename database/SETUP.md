@@ -34,7 +34,28 @@ The 17 people are created with `@placeholder.invalid` email addresses because
 the document gives no contact details. When the real person signs up, match on
 name and re-point the foreign keys — do not create a second row.
 
-## 3. App environment
+## 3. Create your login — `database/supabase-bundle/03_first_user.sql`
+
+There is no sign-up page; this is an internal tool, so accounts are created by
+an admin.
+
+1. Supabase → **Authentication → Users → Add user**
+2. Enter the email and a password, and **tick "Auto Confirm User"** — without it
+   the account cannot sign in until the confirmation email is clicked.
+3. Run `03_first_user.sql` in the SQL Editor.
+
+It grants ADMIN, WORKFLOW_MANAGER, COORDINATOR and APPROVER, and registers the
+account as the approver for all three approval gates so handoffs have somewhere
+to route. Reassign those to the real approvers later — it is an UPDATE, not a
+deploy.
+
+**Order matters, and the script handles it either way.** `01_schema.sql`
+installs a trigger that creates a profile row whenever an auth user is added.
+A user created *before* the schema was applied never fires that trigger and
+ends up with an account but no profile — signed in, then broken. The script
+backfills that case.
+
+## 4. App environment
 
 ```bash
 cp .env.local.example .env.local
@@ -47,7 +68,7 @@ should not be added** — it bypasses row-level security entirely, which would
 defeat the "a user sees only their own work" guarantee that the whole schema is
 built around.
 
-## 4. Verify it took
+## 5. Verify it took
 
 Run this in the SQL Editor:
 
