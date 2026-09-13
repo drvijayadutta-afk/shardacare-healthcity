@@ -25,9 +25,16 @@ Directory setting is needed**.
 1. Open <https://supabase.com/dashboard/project/lwffqugbvbcmpgpsllft>
 2. Left sidebar → **Project Settings** (the gear, bottom of the sidebar)
 3. → **API**
-4. Under **Project API keys**, copy the key labelled **`anon` `public`**
-   (newer projects label it **publishable**). It is a long string starting
-   `eyJ…`.
+4. Under **Project API keys**, copy the *public* key. Which label it carries
+   depends on how old the project is:
+   - **`anon` `public`** — a long JWT starting `eyJ…`
+   - **publishable** — starts `sb_publishable_…`
+
+   Either works. Never use one labelled **`service_role`** or **`secret`**.
+
+   If sign-in fails with **"Invalid API key"**, the app now says why — it checks
+   that the key's project matches the URL, that it is not a service key, and
+   that it was not truncated or padded with whitespace.
 5. The **Project URL** on the same page is the value for
    `NEXT_PUBLIC_SUPABASE_URL`.
 

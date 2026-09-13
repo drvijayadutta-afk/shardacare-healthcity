@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import { requireSupabaseEnv, readSupabaseEnv } from '@/lib/env';
+import { requireSupabaseEnv, readSupabaseEnv, diagnoseSupabaseEnv } from '@/lib/env';
 
 /** Routes reachable without a session. Everything else requires one. */
 const PUBLIC_PATHS = ['/login', '/auth'];
@@ -13,14 +13,20 @@ export async function updateSession(request: NextRequest) {
   // route -- /login included -- and the whole site returns a bare "Internal
   // Server Error" that names nothing. Rewriting to a setup page instead means a
   // misconfigured deployment explains itself.
+  // Missing vars, or present-but-definitely-wrong ones. Supabase answers every
+  // key problem with the same "Invalid API key", which gives the user nothing
+  // to act on; diverting here lets the setup page name the actual cause.
   const envCheck = readSupabaseEnv();
-  if (!envCheck.ok) {
+  const problems = envCheck.ok ? diagnoseSupabaseEnv() : [];
+  if (!envCheck.ok || problems.length > 0) {
     if (request.nextUrl.pathname === SETUP_PATH) {
       return NextResponse.next({ request });
     }
     const url = request.nextUrl.clone();
     url.pathname = SETUP_PATH;
-    url.search = `?missing=${encodeURIComponent(envCheck.missing.join(','))}`;
+    url.search = envCheck.ok
+      ? ''
+      : `?missing=${encodeURIComponent(envCheck.missing.join(','))}`;
     // A rewrite, not a redirect: the address bar keeps the path the user asked
     // for, so the page is not mistaken for a permanent move.
     return NextResponse.rewrite(url);
