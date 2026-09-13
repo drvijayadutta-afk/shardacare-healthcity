@@ -8,7 +8,7 @@
 --     -> Sushant or Nirmal
 --     -> Parul's final go-ahead
 --     -> PO where one is needed
---     -> production -> live
+--     -> production -> Indu posts it on social media
 --
 -- Every stage points at a ROLE, never a person, so who holds a stage is
 -- decided by role assignment in 0011 and changes without touching this file.
@@ -65,7 +65,10 @@ FROM public.workflow_templates w,
      FALSE, FALSE, 'COORDINATOR',    NULL,         FALSE),
   ('PRODUCTION',        11, 'Printed, produced or built',
      FALSE, TRUE,  'DESIGNER',       NULL,         FALSE),
-  ('RELEASE',           12, 'Published and taken live',
+  -- Indu posts it. Physical work (hoardings, signage, print) also lands here
+  -- because no separate owner was named for it; if that turns out wrong it is
+  -- one row -- point RELEASE at COORDINATOR, or add a second template.
+  ('RELEASE',           12, 'Indu posts it on social media',
      FALSE, FALSE, 'SOCIAL_MEDIA',   NULL,         FALSE),
   ('COMPLETED',         13, 'Closed out',
      FALSE, FALSE, NULL,             NULL,         TRUE)
