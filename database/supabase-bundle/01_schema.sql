@@ -2820,6 +2820,129 @@ END;
 $$;
 
 -- ----------------------------------------------------------------------------
+-- add_task_to_work_item — hand someone a task without disturbing whoever
+-- already holds the stage.
+--
+-- Distinct from reassign_work_item on purpose: reassign REPLACES the current
+-- holder (closes their task, opens one for the new person). This ADDS one --
+-- a helper, a second pair of eyes, someone who needs visibility -- so an
+-- existing open task is left exactly as it was. On a currently-unassigned
+-- item there is nothing to leave alone, so this one new task also becomes
+-- the item's official handoff, same as reassign_work_item would.
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.add_task_to_work_item(
+  p_work_item_id UUID,
+  p_assignee_id  UUID,
+  p_note         TEXT DEFAULT NULL
+) RETURNS JSONB LANGUAGE plpgsql AS $$
+DECLARE
+  v_actor         UUID := auth.uid();
+  v_work          public.work_items%ROWTYPE;
+  v_stage         public.workflow_stages%ROWTYPE;
+  v_assignee_name TEXT;
+  v_deadline      DATE;
+  v_task_id       UUID;
+  v_action_type   TEXT;
+  v_had_holder    BOOLEAN;
+BEGIN
+  IF v_actor IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated' USING ERRCODE = '28000';
+  END IF;
+
+  IF NOT public.has_role(ARRAY['ADMIN','WORKFLOW_MANAGER']) THEN
+    RAISE EXCEPTION 'Only an admin or workflow manager can add a task' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT * INTO v_work FROM public.work_items
+  WHERE id = p_work_item_id AND deleted_at IS NULL FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Work item not found' USING ERRCODE = 'P0002';
+  END IF;
+
+  IF v_work.status IN ('COMPLETED','CANCELLED','REJECTED') THEN
+    RAISE EXCEPTION 'Work item is % and cannot take a new task', v_work.status
+      USING ERRCODE = '22023';
+  END IF;
+
+  IF v_work.status = 'ON_HOLD' THEN
+    RAISE EXCEPTION 'Work item is on hold. Resume it before adding a task.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  IF v_work.current_stage_id IS NULL THEN
+    RAISE EXCEPTION 'Work item has no current stage' USING ERRCODE = '22023';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.users WHERE id = p_assignee_id AND is_active
+  ) THEN
+    RAISE EXCEPTION 'That person is not a known, active user' USING ERRCODE = '22023';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.tasks
+    WHERE work_item_id = p_work_item_id AND assignee_id = p_assignee_id
+      AND stage_id = v_work.current_stage_id AND closed_at IS NULL
+  ) THEN
+    RAISE EXCEPTION 'This person already has an open task at this stage' USING ERRCODE = '22023';
+  END IF;
+
+  SELECT * INTO v_stage FROM public.workflow_stages WHERE id = v_work.current_stage_id;
+  SELECT full_name INTO v_assignee_name FROM public.users WHERE id = p_assignee_id;
+
+  v_deadline    := public.compute_stage_deadline(v_work.current_stage_id, v_work.priority);
+  v_action_type := CASE WHEN v_stage.requires_approval THEN 'APPROVE' ELSE 'COMPLETE_STAGE' END;
+
+  INSERT INTO public.tasks (
+    work_item_id, stage_id, assignee_id, assigned_by, title, instructions,
+    action_type, priority, due_date
+  ) VALUES (
+    p_work_item_id, v_work.current_stage_id, p_assignee_id, v_actor,
+    format('%s — %s', v_work.name, v_stage.name), p_note,
+    v_action_type, v_work.priority, v_deadline
+  ) RETURNING id INTO v_task_id;
+
+  v_had_holder := v_work.current_assignee_id IS NOT NULL;
+
+  IF NOT v_had_holder THEN
+    UPDATE public.work_items
+    SET current_assignee_id = p_assignee_id,
+        pending_with_id     = p_assignee_id,
+        pending_with_label  = NULL,
+        status              = 'IN_PROGRESS',
+        stage_deadline      = v_deadline,
+        handoff_at          = NOW(),
+        handoff_by          = v_actor
+    WHERE id = p_work_item_id;
+  END IF;
+
+  -- Whoever gets a task should show up as a collaborator, which is what the
+  -- Work Detail page's "Collaborators" field actually reads from.
+  INSERT INTO public.work_item_owners (work_item_id, user_id, owner_role, assigned_by)
+  VALUES (p_work_item_id, p_assignee_id, 'SUPPORT', v_actor)
+  ON CONFLICT (work_item_id, user_id) DO NOTHING;
+
+  INSERT INTO public.activity_log (work_item_id, task_id, actor_id, action, to_value, detail)
+  VALUES (p_work_item_id, v_task_id, v_actor, 'TASK_ADDED', v_assignee_name,
+          jsonb_build_object('note', p_note, 'stage', v_stage.name));
+
+  INSERT INTO public.notifications (recipient_id, work_item_id, task_id, type, subject, body, action_url)
+  VALUES (p_assignee_id, p_work_item_id, v_task_id, 'ASSIGNMENT',
+          format('New task: %s', v_work.name),
+          format('Stage: %s.%s', v_stage.name,
+                 CASE WHEN p_note IS NOT NULL THEN ' ' || p_note ELSE '' END),
+          '/work/' || p_work_item_id);
+
+  RETURN jsonb_build_object(
+    'added', TRUE,
+    'task_id', v_task_id,
+    'assignee_name', v_assignee_name,
+    'became_holder', NOT v_had_holder
+  );
+END;
+$$;
+
+-- ----------------------------------------------------------------------------
 -- remove_task — delete a task outright rather than closing it through a
 -- normal handoff. Matches tasks_delete RLS exactly (ADMIN only): this is for
 -- correcting a mistake (duplicate task, wrong person, imported cruft), not a
@@ -2884,3 +3007,38 @@ BEGIN
   );
 END;
 $$;
+
+-- ####### 0014_po_not_assessed.sql #######
+
+-- ============================================================================
+-- 0014_po_not_assessed.sql — stop silently asserting "PO not required"
+-- ============================================================================
+-- work_items.po_required defaults to FALSE and po_status defaults to
+-- 'NOT_REQUIRED' (0003_work.sql). The seed importer never set either column
+-- explicitly, so every imported row fell through to those defaults — which
+-- means the app has been claiming, with the same confidence as an item whose
+-- source actually said "no PO needed", that a purchase order was considered
+-- and ruled out for all 38 imported items. The source document never
+-- mentions a purchase order once, for any of them. That is an invented fact,
+-- not a read one.
+--
+-- po_required stays a NOT NULL boolean -- there is no way to make FALSE mean
+-- "unknown" without breaking every existing query and RPC that branches on
+-- it. po_status can and does distinguish the two: NOT_ASSESSED now means
+-- "nobody has said", NOT_REQUIRED keeps meaning "confirmed, no PO needed".
+-- ============================================================================
+
+ALTER TABLE public.work_items DROP CONSTRAINT IF EXISTS chk_work_po_status;
+ALTER TABLE public.work_items ADD CONSTRAINT chk_work_po_status CHECK (po_status IN (
+  'NOT_ASSESSED','NOT_REQUIRED','NOT_STARTED','REQUESTED','IN_REVIEW','APPROVED','RELEASED','REJECTED'
+));
+
+-- Backfill only imported rows (source_ref IS NOT NULL) that are still sitting
+-- on the untouched default. A work item created through the app has a human
+-- who actually ticked or left unticked "a purchase order is needed" -- that
+-- is a real decision, not a default, and must not be overwritten.
+UPDATE public.work_items
+SET po_status = 'NOT_ASSESSED'
+WHERE source_ref IS NOT NULL
+  AND po_required = FALSE
+  AND po_status = 'NOT_REQUIRED';
