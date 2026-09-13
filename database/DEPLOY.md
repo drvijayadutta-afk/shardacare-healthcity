@@ -1,5 +1,20 @@
 # Deploying to Vercel
 
+## If your build says the Root Directory does not exist
+
+> The specified Root Directory "app" does not exist. Please update your Project Settings.
+
+**Vercel → Settings → General → Root Directory → clear the field → Save → Redeploy.**
+
+An earlier version of this project kept the app in an `app/` subdirectory, and
+deployments from that era have Root Directory set to `app`. The app has since
+moved to the repository root and that directory no longer exists, so the setting
+now points at nothing. An empty field means the repository root, which is
+where Vercel should look.
+
+This cannot be fixed from `vercel.json` — Root Directory is a project setting
+only.
+
 ## Layout
 
 The app sits at the repository root — `package.json`, `next.config.ts` and
