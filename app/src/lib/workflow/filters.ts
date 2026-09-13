@@ -1,4 +1,3 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
 
 /**
  * The filters behind the Control Tower tiles.
