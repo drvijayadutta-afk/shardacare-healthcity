@@ -89,10 +89,10 @@ const YEAR_SOURCE = 'line 8 ("Mother & child camp campaign: Vivek 26th Sept 2026
 
 const MONTHS = { sept: 9, september: 9, sep: 9, oct: 10, october: 10, aug: 8, august: 8 };
 
-function parseDate(text, line) {
+function parseDate(text, lineForFlag) {
   // Reject vague references outright — they are not dates.
   if (/\bnext week\b/i.test(text)) {
-    flag(line, 'VAGUE_DATE', '"next week" is not a date; deadline left NULL');
+    flag(lineForFlag, 'VAGUE_DATE', '"next week" is not a date; deadline left NULL');
     return null;
   }
   const m = text.match(/(\d{1,2})\s*(?:st|nd|rd|th)?\s+(sept|september|sep|oct|october|aug|august)\b\s*(\d{4})?/i);
@@ -123,7 +123,7 @@ function findPeople(text) {
 // ---------------------------------------------------------------------------
 // Status detection — verbatim source phrases mapped to workflow vocabulary
 // ---------------------------------------------------------------------------
-function detectStatus(text, line) {
+function detectStatus(text) {
   const t = text.toLowerCase();
 
   if (/\bapproval pending\b|\bapproval is pending\b/.test(t)) {
@@ -163,7 +163,7 @@ function detectStatus(text, line) {
 // ---------------------------------------------------------------------------
 // Approver extraction: "sent to X for approval" / "approved by X"
 // ---------------------------------------------------------------------------
-function detectApprovalTarget(text, line) {
+function detectApprovalTarget(text) {
   const t = text.toLowerCase();
   let m = t.match(/sent to ([^–—(]+?) for approval/);
   if (!m) m = t.match(/approved by ([a-z. ]+?)(?::|,|$)/);

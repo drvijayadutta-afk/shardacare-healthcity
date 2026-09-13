@@ -1,0 +1,39 @@
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { getCurrentUser, canViewAllWork } from '@/lib/auth/roles';
+
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const user = await getCurrentUser();
+  if (!user) redirect('/login');
+
+  const showControlTower = canViewAllWork(user);
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <header className="border-b border-slate-200 bg-white">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
+          <Link href="/my-work" className="text-sm font-semibold text-slate-900">
+            Workflow Control Tower
+          </Link>
+          <nav className="flex items-center gap-4 text-sm">
+            <Link href="/my-work" className="text-slate-600 hover:text-slate-900">My Work</Link>
+            {showControlTower && (
+              <Link href="/control-tower" className="text-slate-600 hover:text-slate-900">
+                Control Tower
+              </Link>
+            )}
+          </nav>
+          <div className="ml-auto flex items-center gap-3">
+            <span className="text-sm text-slate-500">{user.fullName}</span>
+            <form action="/auth/signout" method="post">
+              <button type="submit" className="text-sm text-slate-500 hover:text-slate-900">
+                Sign out
+              </button>
+            </form>
+          </div>
+        </div>
+      </header>
+      <main className="mx-auto max-w-7xl px-4 py-6">{children}</main>
+    </div>
+  );
+}
