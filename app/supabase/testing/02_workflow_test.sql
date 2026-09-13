@@ -13,6 +13,7 @@ DECLARE
   v_stage TEXT;
   v_path TEXT := '';
   v_guard INT := 0;
+  v_saved_dept_auth public.approval_authorities[];
 BEGIN
   -- People
   INSERT INTO auth.users (email, raw_user_meta_data) VALUES
@@ -146,6 +147,16 @@ BEGIN
 
   -- ---- Case C: approval gate with NO authority configured --------------
   -- Must park as unassigned and stay visible, not silently pick someone.
+  --
+  -- 'department' is a real, seeded category (Sushant/Nirmal in production,
+  -- or whatever 0011 configures) — not a throwaway test value. Deleting it
+  -- outright would leave every later test run in this database (03's Sharda
+  -- workflow walk included) unable to route MANAGER_APPROVAL, since these
+  -- suites are meant to run in sequence against one seeded database per
+  -- README.md. Save the rows and put them back once this case is done.
+  SELECT array_agg(a) INTO v_saved_dept_auth
+  FROM public.approval_authorities a WHERE work_category='department';
+
   DELETE FROM public.approval_authorities WHERE work_category='department';
 
   INSERT INTO public.work_items (job_id, workflow_id, current_stage_id, name,
@@ -165,6 +176,11 @@ BEGIN
     RAISE EXCEPTION 'FAIL: an assignee was invented with no authority configured';
   END IF;
   RAISE NOTICE 'Unrouted approval parked as unassigned, not guessed';
+
+  IF v_saved_dept_auth IS NOT NULL THEN
+    INSERT INTO public.approval_authorities
+    SELECT (unnest(v_saved_dept_auth)).*;
+  END IF;
 
   RAISE NOTICE 'ALL WORKFLOW TESTS PASSED';
 END
