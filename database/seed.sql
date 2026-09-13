@@ -145,6 +145,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:0'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'newspaper ad: hindi & English : Love - closed',
@@ -155,8 +156,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_DEADLINE: No date in source; deadline left NULL',
+       'NO_DEADLINE: No date in source; deadline left NULL | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'newspaper ad: hindi & English : Love - closed',
        'joblist:item:1'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -176,6 +178,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:0'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Whatsapp : Nasir Closed',
@@ -186,8 +189,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_DEADLINE: No date in source; deadline left NULL',
+       'NO_DEADLINE: No date in source; deadline left NULL | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'Whatsapp : Nasir Closed',
        'joblist:item:2'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -207,6 +211,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:0'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Emailer : Love - closed',
@@ -217,8 +222,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_DEADLINE: No date in source; deadline left NULL',
+       'NO_DEADLINE: No date in source; deadline left NULL | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'Emailer : Love - closed',
        'joblist:item:3'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -238,6 +244,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:0'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Flyer : Love -',
@@ -248,8 +255,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_DEADLINE: No date in source; deadline left NULL | NO_STATUS: No status word in source; left unset | NO_STATUS: Line reads "Flyer : Love - " with a trailing dash and nothing after it. Owner is Love; status genuinely absent.',
+       'NO_DEADLINE: No date in source; deadline left NULL | NO_STATUS: No status word in source; left unset | NO_STATUS: Line reads "Flyer : Love - " with a trailing dash and nothing after it. Owner is Love; status genuinely absent. | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'Flyer : Love -',
        'joblist:item:4'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -269,6 +277,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:0'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Meta Ad : Closed Nasir',
@@ -279,8 +288,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_DEADLINE: No date in source; deadline left NULL',
+       'NO_DEADLINE: No date in source; deadline left NULL | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'Meta Ad : Closed Nasir',
        'joblist:item:5'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -304,6 +314,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:6'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Sales emailer Neuro Fast: love & shreyak : 10th Sept',
@@ -314,8 +325,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_STATUS: No status word in source; left unset | MULTIPLE_PEOPLE: Love, Shreyak — all kept as collaborators. Which (if any) is the single accountable owner is not stated.',
+       'NO_STATUS: No status word in source; left unset | MULTIPLE_PEOPLE: Love, Shreyak — all kept as collaborators. Which (if any) is the single accountable owner is not stated. | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'Sales emailer Neuro Fast: love & shreyak : 10th Sept',
        'joblist:item:6'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -345,6 +357,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:7'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'ShardaCare hai na film: anshika : 10th sept by 11 am',
@@ -355,8 +368,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_STATUS: No status word in source; left unset',
+       'NO_STATUS: No status word in source; left unset | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'ShardaCare hai na film: anshika : 10th sept by 11 am',
        'joblist:item:7'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -380,6 +394,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:8'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'newspaper ad',
@@ -390,8 +405,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_DEADLINE: No date in source; deadline left NULL | NO_OWNER: No owner on this line. Parent "Mother & child camp campaign: Vivek 26th Sept 2026" names Vivek — NOT inherited. | NO_STATUS: No status word in source; left unset',
+       'NO_DEADLINE: No date in source; deadline left NULL | NO_OWNER: No owner on this line. Parent "Mother & child camp campaign: Vivek 26th Sept 2026" names Vivek — NOT inherited. | NO_STATUS: No status word in source; left unset | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'newspaper ad',
        'joblist:item:9'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -405,6 +421,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:8'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Whatsapp',
@@ -415,8 +432,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_DEADLINE: No date in source; deadline left NULL | NO_OWNER: No owner on this line. Parent "Mother & child camp campaign: Vivek 26th Sept 2026" names Vivek — NOT inherited. | NO_STATUS: No status word in source; left unset',
+       'NO_DEADLINE: No date in source; deadline left NULL | NO_OWNER: No owner on this line. Parent "Mother & child camp campaign: Vivek 26th Sept 2026" names Vivek — NOT inherited. | NO_STATUS: No status word in source; left unset | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'Whatsapp',
        'joblist:item:10'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -430,6 +448,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:8'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Emailer',
@@ -440,8 +459,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_DEADLINE: No date in source; deadline left NULL | NO_OWNER: No owner on this line. Parent "Mother & child camp campaign: Vivek 26th Sept 2026" names Vivek — NOT inherited. | NO_STATUS: No status word in source; left unset',
+       'NO_DEADLINE: No date in source; deadline left NULL | NO_OWNER: No owner on this line. Parent "Mother & child camp campaign: Vivek 26th Sept 2026" names Vivek — NOT inherited. | NO_STATUS: No status word in source; left unset | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'Emailer',
        'joblist:item:11'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -455,6 +475,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:8'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Flyer',
@@ -465,8 +486,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_DEADLINE: No date in source; deadline left NULL | NO_OWNER: No owner on this line. Parent "Mother & child camp campaign: Vivek 26th Sept 2026" names Vivek — NOT inherited. | NO_STATUS: No status word in source; left unset',
+       'NO_DEADLINE: No date in source; deadline left NULL | NO_OWNER: No owner on this line. Parent "Mother & child camp campaign: Vivek 26th Sept 2026" names Vivek — NOT inherited. | NO_STATUS: No status word in source; left unset | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'Flyer',
        'joblist:item:12'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -480,6 +502,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:8'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'P1 Meta creative – 10th Sept',
@@ -490,8 +513,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_OWNER: No owner on this line. Parent "Mother & child camp campaign: Vivek 26th Sept 2026" names Vivek — NOT inherited. | NO_STATUS: No status word in source; left unset',
+       'NO_OWNER: No owner on this line. Parent "Mother & child camp campaign: Vivek 26th Sept 2026" names Vivek — NOT inherited. | NO_STATUS: No status word in source; left unset | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'P1 Meta creative – 10th Sept',
        'joblist:item:13'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -509,6 +533,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:14'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Dr. Tarang: discuss the requirement : Walk Through Video – Himanshu – 9th Sept',
@@ -519,8 +544,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_STATUS: No status word in source; left unset | MULTIPLE_PEOPLE: Himanshu, Dr. Tarang — all kept as collaborators. Which (if any) is the single accountable owner is not stated. | ROLE_AMBIGUOUS: Is "Dr. Tarang" the requester/stakeholder or an owner? The line reads "Dr. Tarang: discuss the requirement" then names Himanshu as doing the video. Recorded as a mention only — no ownership assigned.',
+       'NO_STATUS: No status word in source; left unset | MULTIPLE_PEOPLE: Himanshu, Dr. Tarang — all kept as collaborators. Which (if any) is the single accountable owner is not stated. | ROLE_AMBIGUOUS: Is "Dr. Tarang" the requester/stakeholder or an owner? The line reads "Dr. Tarang: discuss the requirement" then names Himanshu as doing the video. Recorded as a mention only — no ownership assigned. | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'Dr. Tarang: discuss the requirement : Walk Through Video – Himanshu – 9th Sept',
        'joblist:item:14'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -550,6 +576,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:15'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Lab images – Himanshu Vidisha – 10th sept',
@@ -560,8 +587,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_STATUS: No status word in source; left unset | MULTIPLE_PEOPLE: Himanshu, Vidisha — all kept as collaborators. Which (if any) is the single accountable owner is not stated.',
+       'NO_STATUS: No status word in source; left unset | MULTIPLE_PEOPLE: Himanshu, Vidisha — all kept as collaborators. Which (if any) is the single accountable owner is not stated. | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'Lab images – Himanshu Vidisha – 10th sept',
        'joblist:item:15'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -591,6 +619,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:16'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Physio requirements: read document : Jaggi & Vijaya',
@@ -601,8 +630,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_DEADLINE: No date in source; deadline left NULL | NO_STATUS: No status word in source; left unset | MULTIPLE_PEOPLE: Jaggi, Vijaya — all kept as collaborators. Which (if any) is the single accountable owner is not stated.',
+       'NO_DEADLINE: No date in source; deadline left NULL | NO_STATUS: No status word in source; left unset | MULTIPLE_PEOPLE: Jaggi, Vijaya — all kept as collaborators. Which (if any) is the single accountable owner is not stated. | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'Physio requirements: read document : Jaggi & Vijaya',
        'joblist:item:16'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -632,6 +662,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:17'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'World heart day newspaper ad (half advertorial half ad) content - Vijaya',
@@ -642,8 +673,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_DEADLINE: No date in source; deadline left NULL | NO_STATUS: No status word in source; left unset',
+       'NO_DEADLINE: No date in source; deadline left NULL | NO_STATUS: No status word in source; left unset | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'World heart day newspaper ad (half advertorial half ad) content - Vijaya',
        'joblist:item:17'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -667,6 +699,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:18'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'NABH Signages: Nirmal/Mudit/ Shreyak – 10th Sept',
@@ -677,8 +710,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_STATUS: No status word in source; left unset | MULTIPLE_PEOPLE: Shreyak, Nirmal, Mudit — all kept as collaborators. Which (if any) is the single accountable owner is not stated.',
+       'NO_STATUS: No status word in source; left unset | MULTIPLE_PEOPLE: Shreyak, Nirmal, Mudit — all kept as collaborators. Which (if any) is the single accountable owner is not stated. | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'NABH Signages: Nirmal/Mudit/ Shreyak – 10th Sept',
        'joblist:item:18'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -714,6 +748,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:19'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Stroke booklet: release; get it approved by atampreet: total solutions  : Vijaya for makerchecker – sent for printing',
@@ -724,8 +759,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        TRUE,
        'PENDING',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_DEADLINE: No date in source; deadline left NULL | MULTIPLE_PEOPLE: Vijaya, Atampreet — all kept as collaborators. Which (if any) is the single accountable owner is not stated. | ROLE_AMBIGUOUS: "get it approved by atampreet" makes Atampreet the APPROVER, not the owner. "Vijaya for makerchecker" is a second, different review role. The line also ends "sent for printing", implying it already passed both. Sequence not reconstructible from the source. | UNPARSED_TERM: "total solutions" — unclear whether a vendor name, a deliverable, or part of the booklet title.',
+       'NO_DEADLINE: No date in source; deadline left NULL | MULTIPLE_PEOPLE: Vijaya, Atampreet — all kept as collaborators. Which (if any) is the single accountable owner is not stated. | ROLE_AMBIGUOUS: "get it approved by atampreet" makes Atampreet the APPROVER, not the owner. "Vijaya for makerchecker" is a second, different review role. The line also ends "sent for printing", implying it already passed both. Sequence not reconstructible from the source. | UNPARSED_TERM: "total solutions" — unclear whether a vendor name, a deliverable, or part of the booklet title. | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'Stroke booklet: release; get it approved by atampreet: total solutions  : Vijaya for makerchecker – sent for printing',
        'joblist:item:19'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -755,6 +791,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:20'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Maxwell brochure : Vivek   & Vijaya 8th Sept – sent to Akshay for approval (on 9th)',
@@ -765,8 +802,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        TRUE,
        'PENDING',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'MULTIPLE_PEOPLE: Vivek, Vijaya, Akshay — all kept as collaborators. Which (if any) is the single accountable owner is not stated.',
+       'MULTIPLE_PEOPLE: Vivek, Vijaya, Akshay — all kept as collaborators. Which (if any) is the single accountable owner is not stated. | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'Maxwell brochure : Vivek   & Vijaya 8th Sept – sent to Akshay for approval (on 9th)',
        'joblist:item:20'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -802,6 +840,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:21'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'KTP now available at sharda hospital: gate 1 hoarding: Nasir – sent to nirmal and MS',
@@ -812,8 +851,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_DEADLINE: No date in source; deadline left NULL | MULTIPLE_PEOPLE: Nasir, Nirmal — all kept as collaborators. Which (if any) is the single accountable owner is not stated. | UNRESOLVED_RECIPIENT: Cannot resolve "ms" to a person | UNRESOLVED_RECIPIENT: "MS" is an unresolved initialism (Medical Superintendent?). Not added to the roster; recorded verbatim.',
+       'NO_DEADLINE: No date in source; deadline left NULL | MULTIPLE_PEOPLE: Nasir, Nirmal — all kept as collaborators. Which (if any) is the single accountable owner is not stated. | UNRESOLVED_RECIPIENT: Cannot resolve "ms" to a person | UNRESOLVED_RECIPIENT: "MS" is an unresolved initialism (Medical Superintendent?). Not added to the roster; recorded verbatim. | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'KTP now available at sharda hospital: gate 1 hoarding: Nasir – sent to nirmal and MS',
        'joblist:item:21'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -843,6 +883,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:22'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'PIL IUI: Jaggi : 12th Sept',
@@ -853,8 +894,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_STATUS: No status word in source; left unset',
+       'NO_STATUS: No status word in source; left unset | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'PIL IUI: Jaggi : 12th Sept',
        'joblist:item:22'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -878,6 +920,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:23'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Sandwich posters: Pulmonary, Gastro, nephro: Jaggi : 10th Sept: Closed',
@@ -888,8 +931,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
-       FALSE,
-       NULL,
+       FALSE, 'NOT_ASSESSED',
+       TRUE,
+       'PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'Sandwich posters: Pulmonary, Gastro, nephro: Jaggi : 10th Sept: Closed',
        'joblist:item:23'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -913,6 +957,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:24'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Wall of fame: Jaggi – options shared wth Parul ma’am, approval pending – 9th',
@@ -923,8 +968,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        TRUE,
        'PENDING',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_DEADLINE: No date in source; deadline left NULL | MULTIPLE_PEOPLE: Jaggi, Parul — all kept as collaborators. Which (if any) is the single accountable owner is not stated. | PENDING_WITH_NAMED: Source says "approval pending" AND names Parul. Per your instruction the named person wins, so pending_with = Parul rather than the literal "unknown".',
+       'NO_DEADLINE: No date in source; deadline left NULL | MULTIPLE_PEOPLE: Jaggi, Parul — all kept as collaborators. Which (if any) is the single accountable owner is not stated. | PENDING_WITH_NAMED: Source says "approval pending" AND names Parul. Per your instruction the named person wins, so pending_with = Parul rather than the literal "unknown". | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'Wall of fame: Jaggi – options shared wth Parul ma’am, approval pending – 9th',
        'joblist:item:24'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -954,6 +1000,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:25'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Green belt design approval and costing : costing sent to purchase 9th Sept',
@@ -964,8 +1011,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_OWNER: No owner named anywhere on this line; owner left NULL | UNRESOLVED_RECIPIENT: Cannot resolve "purchase 9th sept" to a person',
+       'NO_OWNER: No owner named anywhere on this line; owner left NULL | UNRESOLVED_RECIPIENT: Cannot resolve "purchase 9th sept" to a person | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'Green belt design approval and costing : costing sent to purchase 9th Sept',
        'joblist:item:25'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -983,6 +1031,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:26'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Roundabout creatives: flagpoles: Jaggi:  10th sept',
@@ -993,8 +1042,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_STATUS: No status word in source; left unset',
+       'NO_STATUS: No status word in source; left unset | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'Roundabout creatives: flagpoles: Jaggi:  10th sept',
        'joblist:item:26'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -1018,6 +1068,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:27'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'YK sir Grandson video : Anshika & Vidisha – 9th sept closed10',
@@ -1028,8 +1079,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'MULTIPLE_PEOPLE: Anshika, Vidisha — all kept as collaborators. Which (if any) is the single accountable owner is not stated. | SOURCE_ARTEFACT: Line ends "closed10" — the trailing "10" appears to be a stray list number, not part of the status. Read as "closed"; the "10" is discarded but preserved in source_text.',
+       'MULTIPLE_PEOPLE: Anshika, Vidisha — all kept as collaborators. Which (if any) is the single accountable owner is not stated. | SOURCE_ARTEFACT: Line ends "closed10" — the trailing "10" appears to be a stray list number, not part of the status. Read as "closed"; the "10" is discarded but preserved in source_text. | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'YK sir Grandson video : Anshika & Vidisha – 9th sept closed10',
        'joblist:item:27'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -1059,6 +1111,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:28'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Ayushman Bharat Branding Sharda Hospital : Nasir and Nirmal 10th sept',
@@ -1069,8 +1122,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_STATUS: No status word in source; left unset | MULTIPLE_PEOPLE: Nasir, Nirmal — all kept as collaborators. Which (if any) is the single accountable owner is not stated.',
+       'NO_STATUS: No status word in source; left unset | MULTIPLE_PEOPLE: Nasir, Nirmal — all kept as collaborators. Which (if any) is the single accountable owner is not stated. | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'Ayushman Bharat Branding Sharda Hospital : Nasir and Nirmal 10th sept',
        'joblist:item:28'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -1100,6 +1154,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:29'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Printing Collateral Ayushman Event – Nasir : closed',
@@ -1110,8 +1165,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_DEADLINE: No date in source; deadline left NULL',
+       'NO_DEADLINE: No date in source; deadline left NULL | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'Printing Collateral Ayushman Event – Nasir : closed',
        'joblist:item:29'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -1135,6 +1191,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:30'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Dr. Lipi Clinic branding – Nirmal – vendor aligned',
@@ -1145,8 +1202,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_DEADLINE: No date in source; deadline left NULL',
+       'NO_DEADLINE: No date in source; deadline left NULL | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'Dr. Lipi Clinic branding – Nirmal – vendor aligned',
        'joblist:item:30'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -1170,6 +1228,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:31'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Dr. Ruchi & Dr. Ravindra Clinic Branding- Nirmal – 10th sept',
@@ -1180,8 +1239,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_STATUS: No status word in source; left unset',
+       'NO_STATUS: No status word in source; left unset | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'Dr. Ruchi & Dr. Ravindra Clinic Branding- Nirmal – 10th sept',
        'joblist:item:31'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -1205,6 +1265,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:32'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Dr Avinash clinic branding – 10th sept Shreyak',
@@ -1215,8 +1276,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_STATUS: No status word in source; left unset',
+       'NO_STATUS: No status word in source; left unset | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'Dr Avinash clinic branding – 10th sept Shreyak',
        'joblist:item:32'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -1240,6 +1302,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:33'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Dr. Vivek Yadav Clinic Branding- Nirmal (recce pending – vendor aligned for 11th sept)',
@@ -1250,8 +1313,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'DATE_MEANING: "vendor aligned for 11th sept" — the 11th Sept refers to the vendor visit, not necessarily the work deadline. Recorded as deadline with this caveat.',
+       'DATE_MEANING: "vendor aligned for 11th sept" — the 11th Sept refers to the vendor visit, not necessarily the work deadline. Recorded as deadline with this caveat. | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'Dr. Vivek Yadav Clinic Branding- Nirmal (recce pending – vendor aligned for 11th sept)',
        'joblist:item:33'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -1275,6 +1339,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:34'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Dibrugarh Flyer - Vivek',
@@ -1285,8 +1350,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_DEADLINE: No date in source; deadline left NULL | NO_STATUS: No status word in source; left unset',
+       'NO_DEADLINE: No date in source; deadline left NULL | NO_STATUS: No status word in source; left unset | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'Dibrugarh Flyer - Vivek',
        'joblist:item:34'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -1310,6 +1376,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:35'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Outstation Hoarding  - Sushant',
@@ -1320,8 +1387,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_DEADLINE: No date in source; deadline left NULL | NO_STATUS: No status word in source; left unset',
+       'NO_DEADLINE: No date in source; deadline left NULL | NO_STATUS: No status word in source; left unset | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'Outstation Hoarding  - Sushant',
        'joblist:item:35'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -1345,6 +1413,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:36'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'PILs tracker – Nirmal and Shreyak – 11th September',
@@ -1355,8 +1424,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_STATUS: No status word in source; left unset | MULTIPLE_PEOPLE: Shreyak, Nirmal — all kept as collaborators. Which (if any) is the single accountable owner is not stated.',
+       'NO_STATUS: No status word in source; left unset | MULTIPLE_PEOPLE: Shreyak, Nirmal — all kept as collaborators. Which (if any) is the single accountable owner is not stated. | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'PILs tracker – Nirmal and Shreyak – 11th September',
        'joblist:item:36'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -1386,6 +1456,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:37'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Dr Pallav Mishra printing collaterals – Love and Nirmal – 11th September',
@@ -1396,8 +1467,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_STATUS: No status word in source; left unset | MULTIPLE_PEOPLE: Love, Nirmal — all kept as collaborators. Which (if any) is the single accountable owner is not stated.',
+       'NO_STATUS: No status word in source; left unset | MULTIPLE_PEOPLE: Love, Nirmal — all kept as collaborators. Which (if any) is the single accountable owner is not stated. | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'Dr Pallav Mishra printing collaterals – Love and Nirmal – 11th September',
        'joblist:item:37'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -1427,6 +1499,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:38'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Brochure – International and Master – Jaggi (next week)',
@@ -1437,8 +1510,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'VAGUE_DATE: "next week" is not a date; deadline left NULL | NO_DEADLINE: No date in source; deadline left NULL | NO_STATUS: No status word in source; left unset',
+       'VAGUE_DATE: "next week" is not a date; deadline left NULL | NO_DEADLINE: No date in source; deadline left NULL | NO_STATUS: No status word in source; left unset | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'Brochure – International and Master – Jaggi (next week)',
        'joblist:item:38'
 ON CONFLICT (source_ref) DO NOTHING;
@@ -1462,6 +1536,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:39'),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Sepsis Week (Banners , digital standees, selfie booth, emailer) – Nishith, Nirmal & Nasir',
@@ -1472,8 +1547,9 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        NULL,
        FALSE,
        'NOT_REQUIRED',
+       FALSE, 'NOT_ASSESSED',
        TRUE,
-       'NO_DEADLINE: No date in source; deadline left NULL | NO_STATUS: No status word in source; left unset | MULTIPLE_PEOPLE: Nasir, Nirmal, Nishith — all kept as collaborators. Which (if any) is the single accountable owner is not stated.',
+       'NO_DEADLINE: No date in source; deadline left NULL | NO_STATUS: No status word in source; left unset | MULTIPLE_PEOPLE: Nasir, Nirmal, Nishith — all kept as collaborators. Which (if any) is the single accountable owner is not stated. | PO_NOT_STATED: Source does not say whether a purchase order is needed. po_status set to NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.',
        'Sepsis Week (Banners , digital standees, selfie booth, emailer) – Nishith, Nirmal & Nasir',
        'joblist:item:39'
 ON CONFLICT (source_ref) DO NOTHING;

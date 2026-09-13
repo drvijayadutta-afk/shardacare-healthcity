@@ -385,6 +385,16 @@ ON CONFLICT (source_ref) DO NOTHING;`);
 
   for (const item of job.items) {
     itemCount++;
+
+    // Not one line in the source document mentions a purchase order, for any
+    // job. po_required is a NOT NULL boolean and cannot represent "unknown",
+    // so it stays FALSE -- but po_status is set to NOT_ASSESSED rather than
+    // NOT_REQUIRED, which would otherwise assert (falsely) that a PO was
+    // considered and ruled out. Flagged on every row so it surfaces in review
+    // rather than silently defaulting through the column's own DEFAULT.
+    flag(byIdx[item.idx], 'PO_NOT_STATED',
+      'Source does not say whether a purchase order is needed. po_status set to ' +
+      'NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.');
     const needsReview = flags.some(f => f.idx === item.idx);
     const reviewNotes = flags.filter(f => f.idx === item.idx)
       .map(f => `${f.kind}: ${f.detail}`).join(' | ');
@@ -423,6 +433,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = ${q(jobRef)}),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
+   po_required, po_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        ${q(item.title)},
@@ -433,6 +444,7 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        ${pendingWithLabel ? q(pendingWithLabel) : 'NULL'},
        ${stage === 'APPROVAL' ? 'TRUE' : 'FALSE'},
        ${stage === 'APPROVAL' ? `'PENDING'` : `'NOT_REQUIRED'`},
+       FALSE, 'NOT_ASSESSED',
        ${needsReview ? 'TRUE' : 'FALSE'},
        ${needsReview ? q(reviewNotes) : 'NULL'},
        ${q(item.title)},
