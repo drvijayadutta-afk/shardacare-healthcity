@@ -13,7 +13,7 @@ Creates 21 tables, 2 views, 51 RLS policies and the handoff functions.
 Paste the whole file, Run. Expect a wall of `NOTICE: ... already exists, skipping`
 on any re-run; those are not errors.
 
-**Do not** run anything from `app/supabase/testing/` — that is a local-only stand-in
+**Do not** run anything from `supabase/testing/` — that is a local-only stand-in
 for the `auth` schema, which your project already has.
 
 ## 2. Seed — `database/supabase-bundle/02_seed.sql`

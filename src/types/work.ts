@@ -3,7 +3,7 @@
  *
  * Hand-written rather than generated because the Supabase CLI cannot reach a
  * project from this environment. If the view in
- * app/supabase/migrations/0005_views.sql changes, change this too — nothing
+ * supabase/migrations/0005_views.sql changes, change this too — nothing
  * enforces the correspondence at compile time.
  */
 export interface WorkItemRow {
