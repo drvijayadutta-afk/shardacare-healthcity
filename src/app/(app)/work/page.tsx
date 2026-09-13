@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { StatusBadge, PriorityBadge, OverdueBadge } from '@/components/Badges';
 import { formatDate, formatDaysRemaining, humanise, DASH } from '@/lib/format';
-import { FILTERS, isFilterKey, applyFilter, type FilterKey } from '@/lib/workflow/filters';
+import { FILTERS, isFilterKey, applyFilter, applyOwnerFilter, type FilterKey } from '@/lib/workflow/filters';
 import type { WorkItemRow } from '@/types/work';
 
 export const dynamic = 'force-dynamic';
@@ -10,16 +10,17 @@ export const dynamic = 'force-dynamic';
 export default async function WorkListPage({
   searchParams,
 }: {
-  searchParams: Promise<{ filter?: string }>;
+  searchParams: Promise<{ filter?: string; owner?: string; name?: string }>;
 }) {
-  const { filter: raw } = await searchParams;
+  const { filter: raw, owner, name } = await searchParams;
   const filter: FilterKey = isFilterKey(raw) ? raw : 'active';
 
   const supabase = await createClient();
-  const query = applyFilter(
-    supabase.from('v_work_items').select('*'),
-    filter,
-  ).order('stage_deadline', { ascending: true, nullsFirst: false }).limit(200);
+  let base = applyFilter(supabase.from('v_work_items').select('*'), filter);
+  if (owner) base = applyOwnerFilter(base, owner);
+  const query = base
+    .order('stage_deadline', { ascending: true, nullsFirst: false })
+    .limit(200);
 
   const { data, error } = await query;
   // applyFilter works on an untyped builder, so the row type is restored here.
@@ -31,7 +32,10 @@ export default async function WorkListPage({
         <Link href="/control-tower" className="text-sm text-slate-500 hover:text-slate-900">
           ← Control Tower
         </Link>
-        <h1 className="mt-2 text-xl font-semibold text-slate-900">{FILTERS[filter]}</h1>
+        <h1 className="mt-2 text-xl font-semibold text-slate-900">
+          {FILTERS[filter]}
+          {name && <span className="font-normal text-slate-500"> · {name}</span>}
+        </h1>
         <p className="mt-1 text-sm text-slate-500">
           {error ? 'Could not load' : `${rows.length} ${rows.length === 1 ? 'item' : 'items'}`}
         </p>

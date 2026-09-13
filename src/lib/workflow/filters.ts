@@ -37,7 +37,17 @@ function isoDaysFromNow(days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/**
+ * Narrow to one person. Matches either the current assignee or the owner,
+ * because on imported work nobody is assigned yet and the owner is the only
+ * link to a person — filtering on assignee alone would return nothing for
+ * exactly the rows a manager most wants to look at.
+ */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+export function applyOwnerFilter(query: any, ownerId: string) {
+  return query.or(`current_assignee_id.eq.${ownerId},owner_id.eq.${ownerId}`);
+}
+
 export function applyFilter(query: any, filter: FilterKey) {
   const today = new Date().toISOString().slice(0, 10);
 

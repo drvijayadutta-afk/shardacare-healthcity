@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentUser, canViewAllWork } from '@/lib/auth/roles';
 import { StatusBadge, PriorityBadge } from '@/components/Badges';
-import { formatDate, formatDaysRemaining, humanise, DASH } from '@/lib/format';
+import { formatDate, formatDaysRemaining, humanise, actionLabel, DASH } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,6 +80,17 @@ export default async function ControlTowerPage() {
         .order('stage_deadline', { ascending: true }).limit(10),
     ]);
 
+  // A manager's own queue belongs on the same page as everyone else's. Having
+  // to switch to My Work to see it makes this a report rather than a console.
+  const [mine, allWork] = await Promise.all([
+    supabase.from('v_my_tasks').select('*')
+      .order('effective_due_date', { ascending: true, nullsFirst: false }),
+    supabase.from('v_work_items').select('*')
+      .not('status', 'in', '(COMPLETED,CANCELLED,REJECTED)')
+      .order('stage_deadline', { ascending: true, nullsFirst: false })
+      .limit(100),
+  ]);
+
   // Every query is checked, not just the metrics one. A failing breakdown RPC
   // returns no rows, which would otherwise render as the panel's empty state --
   // a dashboard confidently reporting "No open work" when it actually failed to
@@ -93,6 +104,8 @@ export default async function ControlTowerPage() {
       ['get_po_bottlenecks', poBlocks.error],
       ['critical work query', critical.error],
       ['upcoming deadlines query', upcoming.error],
+      ['your queue', mine.error],
+      ['all work query', allWork.error],
     ] as const
   ).filter(([, err]) => err);
 
@@ -155,6 +168,39 @@ export default async function ControlTowerPage() {
         </div>
       )}
 
+      <Panel
+        title="Your queue"
+        subtitle={
+          mine.data?.length
+            ? 'Assigned to you — act on these'
+            : 'Nothing is assigned to you right now'
+        }
+      >
+        {mine.data?.length ? (
+          <ul className="divide-y divide-slate-100">
+            {mine.data.map((t) => (
+              <li key={t.task_id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm">
+                <Link href={`/work/${t.work_item_id}`}
+                  className="font-medium text-slate-900 underline-offset-2 hover:underline">
+                  {t.work_name}
+                </Link>
+                <span className="text-slate-500">{humanise(t.stage_name)}</span>
+                <span className="text-slate-500">{actionLabel(t.action_type)}</span>
+                <span className={`ml-auto ${t.is_overdue ? 'font-medium text-red-700' : 'text-slate-500'}`}>
+                  {formatDaysRemaining(t.days_remaining)}
+                </span>
+                <PriorityBadge priority={t.task_priority} />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <Empty>
+            Work lands here when someone hands it to you. Everything below is the
+            team&rsquo;s.
+          </Empty>
+        )}
+      </Panel>
+
       <Panel title="Critical work"
              subtitle="Highest priority, still open">
         {critical.data?.length ? (
@@ -203,12 +249,20 @@ export default async function ControlTowerPage() {
           {byOwner.data?.length ? (
             <ul className="divide-y divide-slate-100">
               {byOwner.data.slice(0, 12).map(
-                (r: { owner_name: string; work_count: number; overdue_count: number }) => (
+                (r: { owner_name: string; owner_id: string | null; work_count: number; overdue_count: number }) => (
                 <li key={r.owner_name} className="flex items-center gap-3 py-1.5 text-sm">
-                  <span className={`flex-1 truncate ${
-                    r.owner_name === 'Unassigned' ? 'text-amber-700' : 'text-slate-700'}`}>
-                    {r.owner_name}
-                  </span>
+                  {r.owner_id ? (
+                    <Link
+                      href={`/work?filter=active&owner=${r.owner_id}&name=${encodeURIComponent(r.owner_name)}`}
+                      className="flex-1 truncate text-slate-700 underline-offset-2 hover:underline">
+                      {r.owner_name}
+                    </Link>
+                  ) : (
+                    <Link href="/work?filter=unassigned"
+                      className="flex-1 truncate text-amber-700 underline-offset-2 hover:underline">
+                      {r.owner_name}
+                    </Link>
+                  )}
                   {Number(r.overdue_count) > 0 && (
                     <span className="text-xs font-medium text-red-700">
                       {r.overdue_count} overdue
@@ -261,6 +315,61 @@ export default async function ControlTowerPage() {
           ) : <Empty>No purchase orders outstanding.</Empty>}
         </Panel>
       </div>
+
+      <Panel
+        title="All active work"
+        subtitle={`Every open item across the team${
+          (allWork.data?.length ?? 0) >= 100 ? ' — first 100' : ''
+        }`}
+      >
+        {allWork.data?.length ? (
+          <div className="-mx-5 overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200 text-sm">
+              <thead>
+                <tr className="text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <th scope="col" className="px-5 py-2">Work</th>
+                  <th scope="col" className="px-3 py-2">Stage</th>
+                  <th scope="col" className="px-3 py-2">Owner</th>
+                  <th scope="col" className="px-3 py-2">Pending With</th>
+                  <th scope="col" className="px-3 py-2">Due</th>
+                  <th scope="col" className="px-3 py-2">Days</th>
+                  <th scope="col" className="px-3 py-2">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {allWork.data.map((w) => (
+                  <tr key={w.id} className="hover:bg-slate-50">
+                    <td className="px-5 py-2">
+                      <Link href={`/work/${w.id}`}
+                        className="font-medium text-slate-900 underline-offset-2 hover:underline">
+                        {w.name}
+                      </Link>
+                    </td>
+                    <td className="px-3 py-2 text-slate-600">{humanise(w.stage_name)}</td>
+                    <td className="px-3 py-2 text-slate-600">{w.owner_name ?? DASH}</td>
+                    <td className="px-3 py-2 text-slate-600">
+                      <span className={w.pending_with === 'unassigned' || w.pending_with === 'unknown'
+                        ? 'text-amber-700' : ''}>{w.pending_with ?? DASH}</span>
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap text-slate-600">
+                      {formatDate(w.stage_deadline ?? w.deadline)}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <span className={w.is_overdue ? 'font-medium text-red-700' : 'text-slate-600'}>
+                        {formatDaysRemaining(w.days_remaining)}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2"><StatusBadge status={w.status} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <Empty>No open work. If you expected the imported job list here, the
+            seed has not run — see database/supabase-bundle/00_diagnose.sql.</Empty>
+        )}
+      </Panel>
 
       <Panel title="Upcoming deadlines" subtitle="Next ten, soonest first">
         {upcoming.data?.length ? (

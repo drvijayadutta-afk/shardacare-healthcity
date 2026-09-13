@@ -140,15 +140,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:0'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = 'Love' LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'newspaper ad: hindi & English : Love - closed',
        'COMPLETED',
        NULL,
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -160,7 +162,7 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
 ON CONFLICT (source_ref) DO NOTHING;
 
 INSERT INTO public.work_item_owners (work_item_id, user_id, owner_role)
-SELECT wi.id, u.id, 'COLLABORATOR'
+SELECT wi.id, u.id, 'PRIMARY'
 FROM public.work_items wi, public.users u
 WHERE wi.source_ref = 'joblist:item:1' AND u.full_name = 'Love'
 ON CONFLICT DO NOTHING;
@@ -169,15 +171,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:0'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = 'Nasir' LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Whatsapp : Nasir Closed',
        'COMPLETED',
        NULL,
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -189,7 +193,7 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
 ON CONFLICT (source_ref) DO NOTHING;
 
 INSERT INTO public.work_item_owners (work_item_id, user_id, owner_role)
-SELECT wi.id, u.id, 'COLLABORATOR'
+SELECT wi.id, u.id, 'PRIMARY'
 FROM public.work_items wi, public.users u
 WHERE wi.source_ref = 'joblist:item:2' AND u.full_name = 'Nasir'
 ON CONFLICT DO NOTHING;
@@ -198,15 +202,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:0'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = 'Love' LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Emailer : Love - closed',
        'COMPLETED',
        NULL,
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -218,7 +224,7 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
 ON CONFLICT (source_ref) DO NOTHING;
 
 INSERT INTO public.work_item_owners (work_item_id, user_id, owner_role)
-SELECT wi.id, u.id, 'COLLABORATOR'
+SELECT wi.id, u.id, 'PRIMARY'
 FROM public.work_items wi, public.users u
 WHERE wi.source_ref = 'joblist:item:3' AND u.full_name = 'Love'
 ON CONFLICT DO NOTHING;
@@ -227,15 +233,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:0'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = 'Love' LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Flyer : Love -',
        'NOT_STARTED',
        NULL,
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -247,7 +255,7 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
 ON CONFLICT (source_ref) DO NOTHING;
 
 INSERT INTO public.work_item_owners (work_item_id, user_id, owner_role)
-SELECT wi.id, u.id, 'COLLABORATOR'
+SELECT wi.id, u.id, 'PRIMARY'
 FROM public.work_items wi, public.users u
 WHERE wi.source_ref = 'joblist:item:4' AND u.full_name = 'Love'
 ON CONFLICT DO NOTHING;
@@ -256,15 +264,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:0'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = 'Nasir' LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Meta Ad : Closed Nasir',
        'COMPLETED',
        NULL,
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -276,7 +286,7 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
 ON CONFLICT (source_ref) DO NOTHING;
 
 INSERT INTO public.work_item_owners (work_item_id, user_id, owner_role)
-SELECT wi.id, u.id, 'COLLABORATOR'
+SELECT wi.id, u.id, 'PRIMARY'
 FROM public.work_items wi, public.users u
 WHERE wi.source_ref = 'joblist:item:5' AND u.full_name = 'Nasir'
 ON CONFLICT DO NOTHING;
@@ -289,15 +299,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:6'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Sales emailer Neuro Fast: love & shreyak : 10th Sept',
        'NOT_STARTED',
        '2026-09-10',
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -328,15 +340,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:7'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = 'Anshika' LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'ShardaCare hai na film: anshika : 10th sept by 11 am',
        'NOT_STARTED',
        '2026-09-10',
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -348,7 +362,7 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
 ON CONFLICT (source_ref) DO NOTHING;
 
 INSERT INTO public.work_item_owners (work_item_id, user_id, owner_role)
-SELECT wi.id, u.id, 'COLLABORATOR'
+SELECT wi.id, u.id, 'PRIMARY'
 FROM public.work_items wi, public.users u
 WHERE wi.source_ref = 'joblist:item:7' AND u.full_name = 'Anshika'
 ON CONFLICT DO NOTHING;
@@ -361,15 +375,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:8'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'newspaper ad',
        'NOT_STARTED',
        NULL,
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -384,15 +400,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:8'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Whatsapp',
        'NOT_STARTED',
        NULL,
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -407,15 +425,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:8'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Emailer',
        'NOT_STARTED',
        NULL,
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -430,15 +450,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:8'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Flyer',
        'NOT_STARTED',
        NULL,
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -453,15 +475,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:8'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'P1 Meta creative – 10th Sept',
        'NOT_STARTED',
        '2026-09-10',
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -480,15 +504,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:14'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Dr. Tarang: discuss the requirement : Walk Through Video – Himanshu – 9th Sept',
        'NOT_STARTED',
        '2026-09-09',
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -519,15 +545,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:15'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Lab images – Himanshu Vidisha – 10th sept',
        'NOT_STARTED',
        '2026-09-10',
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -558,15 +586,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:16'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Physio requirements: read document : Jaggi & Vijaya',
        'NOT_STARTED',
        NULL,
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -597,15 +627,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:17'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = 'Vijaya' LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'World heart day newspaper ad (half advertorial half ad) content - Vijaya',
        'NOT_STARTED',
        NULL,
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -617,7 +649,7 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
 ON CONFLICT (source_ref) DO NOTHING;
 
 INSERT INTO public.work_item_owners (work_item_id, user_id, owner_role)
-SELECT wi.id, u.id, 'COLLABORATOR'
+SELECT wi.id, u.id, 'PRIMARY'
 FROM public.work_items wi, public.users u
 WHERE wi.source_ref = 'joblist:item:17' AND u.full_name = 'Vijaya'
 ON CONFLICT DO NOTHING;
@@ -630,15 +662,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:18'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'NABH Signages: Nirmal/Mudit/ Shreyak – 10th Sept',
        'NOT_STARTED',
        '2026-09-10',
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -675,15 +709,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:19'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='APPROVAL'),
-     pw AS (SELECT id FROM public.users WHERE full_name = 'Atampreet' LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = 'Atampreet' LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Stroke booklet: release; get it approved by atampreet: total solutions  : Vijaya for makerchecker – sent for printing',
        'PENDING',
        NULL,
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        TRUE,
@@ -714,15 +750,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:20'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='APPROVAL'),
-     pw AS (SELECT id FROM public.users WHERE full_name = 'Akshay' LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = 'Akshay' LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Maxwell brochure : Vivek   & Vijaya 8th Sept – sent to Akshay for approval (on 9th)',
        'PENDING',
        '2026-09-08',
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        TRUE,
@@ -759,15 +797,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:21'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'KTP now available at sharda hospital: gate 1 hoarding: Nasir – sent to nirmal and MS',
        'PENDING',
        NULL,
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -798,15 +838,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:22'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = 'Jaggi' LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'PIL IUI: Jaggi : 12th Sept',
        'NOT_STARTED',
        '2026-09-12',
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -818,7 +860,7 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
 ON CONFLICT (source_ref) DO NOTHING;
 
 INSERT INTO public.work_item_owners (work_item_id, user_id, owner_role)
-SELECT wi.id, u.id, 'COLLABORATOR'
+SELECT wi.id, u.id, 'PRIMARY'
 FROM public.work_items wi, public.users u
 WHERE wi.source_ref = 'joblist:item:22' AND u.full_name = 'Jaggi'
 ON CONFLICT DO NOTHING;
@@ -831,15 +873,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:23'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = 'Jaggi' LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Sandwich posters: Pulmonary, Gastro, nephro: Jaggi : 10th Sept: Closed',
        'COMPLETED',
        '2026-09-10',
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -851,7 +895,7 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
 ON CONFLICT (source_ref) DO NOTHING;
 
 INSERT INTO public.work_item_owners (work_item_id, user_id, owner_role)
-SELECT wi.id, u.id, 'COLLABORATOR'
+SELECT wi.id, u.id, 'PRIMARY'
 FROM public.work_items wi, public.users u
 WHERE wi.source_ref = 'joblist:item:23' AND u.full_name = 'Jaggi'
 ON CONFLICT DO NOTHING;
@@ -864,15 +908,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:24'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='APPROVAL'),
-     pw AS (SELECT id FROM public.users WHERE full_name = 'Parul' LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = 'Parul' LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Wall of fame: Jaggi – options shared wth Parul ma’am, approval pending – 9th',
        'PENDING',
        NULL,
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        TRUE,
@@ -903,15 +949,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:25'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Green belt design approval and costing : costing sent to purchase 9th Sept',
        'PENDING',
        '2026-09-09',
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -930,15 +978,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:26'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = 'Jaggi' LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Roundabout creatives: flagpoles: Jaggi:  10th sept',
        'NOT_STARTED',
        '2026-09-10',
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -950,7 +1000,7 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
 ON CONFLICT (source_ref) DO NOTHING;
 
 INSERT INTO public.work_item_owners (work_item_id, user_id, owner_role)
-SELECT wi.id, u.id, 'COLLABORATOR'
+SELECT wi.id, u.id, 'PRIMARY'
 FROM public.work_items wi, public.users u
 WHERE wi.source_ref = 'joblist:item:26' AND u.full_name = 'Jaggi'
 ON CONFLICT DO NOTHING;
@@ -963,15 +1013,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:27'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'YK sir Grandson video : Anshika & Vidisha – 9th sept closed10',
        'COMPLETED',
        '2026-09-09',
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -1002,15 +1054,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:28'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Ayushman Bharat Branding Sharda Hospital : Nasir and Nirmal 10th sept',
        'NOT_STARTED',
        '2026-09-10',
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -1041,15 +1095,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:29'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = 'Nasir' LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Printing Collateral Ayushman Event – Nasir : closed',
        'COMPLETED',
        NULL,
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -1061,7 +1117,7 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
 ON CONFLICT (source_ref) DO NOTHING;
 
 INSERT INTO public.work_item_owners (work_item_id, user_id, owner_role)
-SELECT wi.id, u.id, 'COLLABORATOR'
+SELECT wi.id, u.id, 'PRIMARY'
 FROM public.work_items wi, public.users u
 WHERE wi.source_ref = 'joblist:item:29' AND u.full_name = 'Nasir'
 ON CONFLICT DO NOTHING;
@@ -1074,15 +1130,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:30'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = 'Nirmal' LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Dr. Lipi Clinic branding – Nirmal – vendor aligned',
        'IN_PROGRESS',
        NULL,
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -1094,7 +1152,7 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
 ON CONFLICT (source_ref) DO NOTHING;
 
 INSERT INTO public.work_item_owners (work_item_id, user_id, owner_role)
-SELECT wi.id, u.id, 'COLLABORATOR'
+SELECT wi.id, u.id, 'PRIMARY'
 FROM public.work_items wi, public.users u
 WHERE wi.source_ref = 'joblist:item:30' AND u.full_name = 'Nirmal'
 ON CONFLICT DO NOTHING;
@@ -1107,15 +1165,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:31'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = 'Nirmal' LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Dr. Ruchi & Dr. Ravindra Clinic Branding- Nirmal – 10th sept',
        'NOT_STARTED',
        '2026-09-10',
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -1127,7 +1187,7 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
 ON CONFLICT (source_ref) DO NOTHING;
 
 INSERT INTO public.work_item_owners (work_item_id, user_id, owner_role)
-SELECT wi.id, u.id, 'COLLABORATOR'
+SELECT wi.id, u.id, 'PRIMARY'
 FROM public.work_items wi, public.users u
 WHERE wi.source_ref = 'joblist:item:31' AND u.full_name = 'Nirmal'
 ON CONFLICT DO NOTHING;
@@ -1140,15 +1200,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:32'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = 'Shreyak' LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Dr Avinash clinic branding – 10th sept Shreyak',
        'NOT_STARTED',
        '2026-09-10',
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -1160,7 +1222,7 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
 ON CONFLICT (source_ref) DO NOTHING;
 
 INSERT INTO public.work_item_owners (work_item_id, user_id, owner_role)
-SELECT wi.id, u.id, 'COLLABORATOR'
+SELECT wi.id, u.id, 'PRIMARY'
 FROM public.work_items wi, public.users u
 WHERE wi.source_ref = 'joblist:item:32' AND u.full_name = 'Shreyak'
 ON CONFLICT DO NOTHING;
@@ -1173,15 +1235,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:33'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = 'Nirmal' LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Dr. Vivek Yadav Clinic Branding- Nirmal (recce pending – vendor aligned for 11th sept)',
        'PENDING',
        '2026-09-11',
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -1193,7 +1257,7 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
 ON CONFLICT (source_ref) DO NOTHING;
 
 INSERT INTO public.work_item_owners (work_item_id, user_id, owner_role)
-SELECT wi.id, u.id, 'COLLABORATOR'
+SELECT wi.id, u.id, 'PRIMARY'
 FROM public.work_items wi, public.users u
 WHERE wi.source_ref = 'joblist:item:33' AND u.full_name = 'Nirmal'
 ON CONFLICT DO NOTHING;
@@ -1206,15 +1270,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:34'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = 'Vivek' LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Dibrugarh Flyer - Vivek',
        'NOT_STARTED',
        NULL,
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -1226,7 +1292,7 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
 ON CONFLICT (source_ref) DO NOTHING;
 
 INSERT INTO public.work_item_owners (work_item_id, user_id, owner_role)
-SELECT wi.id, u.id, 'COLLABORATOR'
+SELECT wi.id, u.id, 'PRIMARY'
 FROM public.work_items wi, public.users u
 WHERE wi.source_ref = 'joblist:item:34' AND u.full_name = 'Vivek'
 ON CONFLICT DO NOTHING;
@@ -1239,15 +1305,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:35'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = 'Sushant' LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Outstation Hoarding  - Sushant',
        'NOT_STARTED',
        NULL,
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -1259,7 +1327,7 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
 ON CONFLICT (source_ref) DO NOTHING;
 
 INSERT INTO public.work_item_owners (work_item_id, user_id, owner_role)
-SELECT wi.id, u.id, 'COLLABORATOR'
+SELECT wi.id, u.id, 'PRIMARY'
 FROM public.work_items wi, public.users u
 WHERE wi.source_ref = 'joblist:item:35' AND u.full_name = 'Sushant'
 ON CONFLICT DO NOTHING;
@@ -1272,15 +1340,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:36'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'PILs tracker – Nirmal and Shreyak – 11th September',
        'NOT_STARTED',
        '2026-09-11',
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -1311,15 +1381,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:37'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Dr Pallav Mishra printing collaterals – Love and Nirmal – 11th September',
        'NOT_STARTED',
        '2026-09-11',
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -1350,15 +1422,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:38'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = 'Jaggi' LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Brochure – International and Master – Jaggi (next week)',
        'NOT_STARTED',
        NULL,
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,
@@ -1370,7 +1444,7 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
 ON CONFLICT (source_ref) DO NOTHING;
 
 INSERT INTO public.work_item_owners (work_item_id, user_id, owner_role)
-SELECT wi.id, u.id, 'COLLABORATOR'
+SELECT wi.id, u.id, 'PRIMARY'
 FROM public.work_items wi, public.users u
 WHERE wi.source_ref = 'joblist:item:38' AND u.full_name = 'Jaggi'
 ON CONFLICT DO NOTHING;
@@ -1383,15 +1457,17 @@ WITH j AS (SELECT id FROM public.jobs WHERE source_ref = 'joblist:job:39'),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name='IMPORTED'),
-     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = NULL LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        'Sepsis Week (Banners , digital standees, selfie booth, emailer) – Nishith, Nirmal & Nasir',
        'NOT_STARTED',
        NULL,
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        NULL,
        FALSE,

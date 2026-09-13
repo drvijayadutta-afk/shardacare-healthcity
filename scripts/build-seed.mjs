@@ -404,20 +404,31 @@ ON CONFLICT (source_ref) DO NOTHING;`);
     }
 
     const itemRef = `joblist:item:${item.idx}`;
+
+    // One person named on the line IS the owner -- that is reading the
+    // document, not guessing. Several names is genuinely ambiguous about who
+    // is accountable, so owner_id stays NULL there and everyone is kept as a
+    // collaborator; the row is already flagged MULTIPLE_PEOPLE for a human to
+    // settle. Without this the dashboard attributes every imported item to
+    // "Unassigned", which understates what the source actually says.
+    const soleOwner = item.people.length === 1 ? item.people[0] : null;
+
     sql.push(`
 WITH j AS (SELECT id FROM public.jobs WHERE source_ref = ${q(jobRef)}),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name=${q(stage)}),
-     pw AS (SELECT id FROM public.users WHERE full_name = ${q(pendingWithName)} LIMIT 1)
+     pw AS (SELECT id FROM public.users WHERE full_name = ${q(pendingWithName)} LIMIT 1),
+     ow AS (SELECT id FROM public.users WHERE full_name = ${q(soleOwner)} LIMIT 1)
 INSERT INTO public.work_items
-  (job_id, workflow_id, current_stage_id, name, status, deadline,
+  (job_id, workflow_id, current_stage_id, name, status, deadline, owner_id,
    pending_with_id, pending_with_label, approval_required, approval_status,
    needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        ${q(item.title)},
        ${st.status ? q(st.status) : `'NOT_STARTED'`},
        ${item.date ? q(item.date) : 'NULL'},
+       (SELECT id FROM ow),
        (SELECT id FROM pw),
        ${pendingWithLabel ? q(pendingWithLabel) : 'NULL'},
        ${stage === 'APPROVAL' ? 'TRUE' : 'FALSE'},
@@ -432,9 +443,10 @@ ON CONFLICT (source_ref) DO NOTHING;`);
     // Matched on source_ref, not source_text: two different lines can carry
     // the same text ("Whatsapp" appears under both Cardiac and Mother & Child).
     for (const person of item.people) {
+      const role = person === soleOwner ? 'PRIMARY' : 'COLLABORATOR';
       sql.push(`
 INSERT INTO public.work_item_owners (work_item_id, user_id, owner_role)
-SELECT wi.id, u.id, 'COLLABORATOR'
+SELECT wi.id, u.id, ${q(role)}
 FROM public.work_items wi, public.users u
 WHERE wi.source_ref = ${q(itemRef)} AND u.full_name = ${q(person)}
 ON CONFLICT DO NOTHING;`);
