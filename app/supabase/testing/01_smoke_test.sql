@@ -44,8 +44,10 @@ BEGIN
     SELECT v_coord,     id FROM public.roles WHERE name = 'COORDINATOR';
 
   -- Workflow: Brief -> Design -> Approval -> (PO?) -> Production -> done
+  -- is_default FALSE: 0008_default_workflow.sql already owns the default slot,
+  -- and idx_workflow_templates_one_default permits exactly one.
   INSERT INTO public.workflow_templates (name, multi_owner_behavior, is_default)
-    VALUES ('Standard Creative', 'SINGLE', TRUE) RETURNING id INTO v_wf;
+    VALUES ('Standard Creative', 'SINGLE', FALSE) RETURNING id INTO v_wf;
 
   INSERT INTO public.workflow_stages (workflow_id, name, stage_order, sla_days)
     VALUES (v_wf, 'BRIEF', 1, 1) RETURNING id INTO v_brief;

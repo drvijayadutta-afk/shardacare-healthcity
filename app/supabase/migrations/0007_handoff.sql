@@ -411,14 +411,20 @@ BEGIN
     ELSE 'COMPLETE_STAGE'
   END;
 
+  -- A workflow can end two ways: a transition pointing at nothing (handled
+  -- above), or landing on a stage flagged is_terminal. The 11-stage flow uses
+  -- the second form because "Completed" is a real stage users need to see in
+  -- the progress tracker -- without this it would sit there as IN_PROGRESS.
   v_next_status := CASE
+    WHEN v_next_stage.is_terminal       THEN 'COMPLETED'
     WHEN v_next_stage.requires_approval THEN 'PENDING'
     WHEN v_next_assignee IS NULL        THEN 'PENDING'
     ELSE 'IN_PROGRESS'
   END;
 
   -- ---- 6. CREATE NEXT TASK ----------------------------------------------
-  IF v_next_assignee IS NOT NULL THEN
+  -- No task on a terminal stage: there is nothing left for anyone to do.
+  IF v_next_assignee IS NOT NULL AND NOT v_next_stage.is_terminal THEN
     INSERT INTO public.tasks (
       work_item_id, stage_id, assignee_id, assigned_by, title, instructions,
       action_type, priority, due_date
@@ -437,16 +443,23 @@ BEGIN
   UPDATE public.work_items
   SET previous_stage_id  = v_stage.id,
       current_stage_id   = v_next_stage_id,
-      current_assignee_id= v_next_assignee,
-      pending_with_id    = v_next_assignee,
-      pending_with_label = CASE WHEN v_next_assignee IS NULL THEN 'unassigned' ELSE NULL END,
+      -- Finished work is pending with nobody. Leaving an assignee on a
+      -- terminal stage would keep it sitting in that person's My Work queue
+      -- forever.
+      current_assignee_id= CASE WHEN v_next_stage.is_terminal THEN NULL ELSE v_next_assignee END,
+      pending_with_id    = CASE WHEN v_next_stage.is_terminal THEN NULL ELSE v_next_assignee END,
+      pending_with_label = CASE
+                             WHEN v_next_stage.is_terminal THEN NULL
+                             WHEN v_next_assignee IS NULL   THEN 'unassigned'
+                             ELSE NULL END,
       status             = v_next_status,
       substatus          = NULL,
       approval_required  = v_next_stage.requires_approval,
       approval_status    = CASE WHEN v_next_stage.requires_approval
                                 THEN 'PENDING' ELSE approval_status END,
-      stage_deadline     = v_next_deadline,
+      stage_deadline     = CASE WHEN v_next_stage.is_terminal THEN NULL ELSE v_next_deadline END,
       submission_count   = v_submission_no,
+      completed_at       = CASE WHEN v_next_stage.is_terminal THEN NOW() ELSE completed_at END,
       handoff_at         = NOW(),
       handoff_by         = v_actor
   WHERE id = p_work_item_id;
