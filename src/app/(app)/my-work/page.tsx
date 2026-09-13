@@ -48,6 +48,18 @@ export default async function MyWorkPage() {
   const tasks = (data ?? []) as TaskRow[];
   const overdue = tasks.filter((t) => t.is_overdue).length;
 
+  // An empty queue is normal here, but indistinguishable from a broken app
+  // unless we say whether work exists at all. 31 of the 38 imported items have
+  // no assignee, because the source document named none -- so the common case
+  // is "nothing is yours yet", not "nothing is here".
+  let totalWork = 0;
+  if (tasks.length === 0) {
+    const { count } = await supabase
+      .from('v_work_items')
+      .select('id', { count: 'exact', head: true });
+    totalWork = count ?? 0;
+  }
+
   return (
     <div>
       <div className="mb-5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -62,11 +74,40 @@ export default async function MyWorkPage() {
 
       {tasks.length === 0 ? (
         <div className="rounded-lg border border-slate-200 bg-white p-10 text-center">
-          <p className="text-sm font-medium text-slate-900">Your queue is empty</p>
-          <p className="mt-1 text-sm text-slate-500">
-            Work appears here the moment someone hands it to you.
-          </p>
-          <p className="mt-3 text-xs text-slate-400">
+          <p className="text-sm font-medium text-slate-900">Nothing is assigned to you</p>
+
+          {totalWork > 0 ? (
+            <>
+              <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
+                This page shows only work assigned to you. There {totalWork === 1
+                  ? 'is 1 item' : `are ${totalWork} items`} in the system — most
+                imported from the job list with no owner named, so nobody holds
+                them yet.
+              </p>
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                <Link href="/work?filter=all"
+                  className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">
+                  See all {totalWork} items
+                </Link>
+                <Link href="/work?filter=unassigned"
+                  className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                  Unassigned
+                </Link>
+                <Link href="/work?filter=needs_review"
+                  className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                  Needs review
+                </Link>
+              </div>
+            </>
+          ) : (
+            <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
+              There is no work in the system at all. If you expected the imported
+              job list to be here, the seed has not run — check{' '}
+              <code className="text-xs">database/supabase-bundle/00_diagnose.sql</code>.
+            </p>
+          )}
+
+          <p className="mt-4 text-xs text-slate-400">
             Signed in as {user?.fullName}
             {user && user.roles.length > 0 && ` · ${user.roles.map(humanise).join(', ')}`}
           </p>
