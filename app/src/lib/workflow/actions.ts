@@ -29,7 +29,7 @@ export interface ActionResult {
 function describeError(code: string | undefined, message: string): string {
   switch (code) {
     case '28000': return 'Your session has expired. Sign in again.';
-    case '42501': return 'This work is not assigned to you.';
+    case '42501': return message; // 'You do not hold this work item' / an admin-only override refused.
     case 'P0002': return 'That work item no longer exists.';
     case '22023': return message; // Raised with a specific, already-readable reason.
     default:      return message || 'Something went wrong.';
@@ -192,6 +192,59 @@ export async function addComment(
 
   revalidatePath(`/work/${workItemId}`);
   return { ok: true, message: 'Comment added.' };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Admin overrides — reassignment and task removal                           */
+/* -------------------------------------------------------------------------- */
+
+export async function reassignWorkItem(
+  workItemId: string,
+  newAssigneeId: string,
+  note?: string,
+): Promise<ActionResult> {
+  if (!newAssigneeId) return { ok: false, message: 'Choose someone to reassign this to.' };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('reassign_work_item', {
+    p_work_item_id: workItemId,
+    p_new_assignee_id: newAssigneeId,
+    p_note: note?.trim() || null,
+  });
+
+  if (error) return { ok: false, message: describeError(error.code, error.message) };
+
+  refresh(workItemId);
+  const result = data as Record<string, unknown>;
+  return {
+    ok: true,
+    message: `Reassigned to ${result.new_assignee_name}.`,
+    detail: result,
+  };
+}
+
+export async function removeTask(
+  taskId: string,
+  reason?: string,
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('remove_task', {
+    p_task_id: taskId,
+    p_reason: reason?.trim() || null,
+  });
+
+  if (error) return { ok: false, message: describeError(error.code, error.message) };
+
+  const result = data as Record<string, unknown>;
+  if (result.work_item_id) refresh(result.work_item_id as string);
+
+  return {
+    ok: true,
+    message: result.cleared_assignment
+      ? 'Task deleted. Nobody currently holds this work.'
+      : 'Task deleted.',
+    detail: result,
+  };
 }
 
 /* -------------------------------------------------------------------------- */

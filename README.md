@@ -55,7 +55,12 @@ The 11-stage flow and its procurement detour are defined in
 psql -f app/supabase/testing/00_auth_shim.sql   # stands in for Supabase's auth schema
 psql -f app/supabase/testing/01_smoke_test.sql  # handoff engine, 10 cases
 psql -f app/supabase/testing/02_workflow_test.sql  # full 11-stage walk, both PO branches
+psql -f app/supabase/testing/03_sharda_workflow_test.sql  # the real team, by name
+psql -f app/supabase/testing/04_admin_controls_test.sql  # reassign / delete-task role gates
 ```
+
+Run against the same database, in this order — 02 seeds and restores approval
+authorities that 03 depends on to route MANAGER_APPROVAL.
 
 ## Known state
 

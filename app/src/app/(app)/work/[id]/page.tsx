@@ -1,9 +1,10 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { getCurrentUser } from '@/lib/auth/roles';
+import { getCurrentUser, hasRole } from '@/lib/auth/roles';
 import { StatusBadge, PriorityBadge, OverdueBadge } from '@/components/Badges';
 import { WorkActions } from '@/components/WorkActions';
+import { AdminControls } from '@/components/AdminControls';
 import { WorkflowStepper } from '@/components/WorkflowStepper';
 import { CommentForm } from '@/components/CommentForm';
 import { formatDate, formatDaysRemaining, humanise, DASH } from '@/lib/format';
@@ -80,6 +81,29 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
   const canApprove = holdsIt && work.stage_requires_approval && !isFinished && !isOnHold;
   const canSubmit  = holdsIt && !isFinished && !isOnHold;
   const canHold    = holdsIt && !isFinished;
+
+  // Same role check as reassign_work_item / remove_task themselves — this
+  // only decides whether the panel renders, not whether the action succeeds.
+  const canManage = hasRole(user, 'ADMIN', 'WORKFLOW_MANAGER') && !isFinished && !isOnHold;
+  const canDelete = hasRole(user, 'ADMIN');
+
+  let adminPeople: { id: string; full_name: string }[] = [];
+  let currentTaskId: string | null = null;
+  let currentAssigneeNameForTask: string | null = null;
+
+  if (canManage && work.current_stage_id) {
+    const [peopleRes, taskRes] = await Promise.all([
+      supabase.from('users').select('id, full_name').eq('is_active', true).order('full_name'),
+      supabase.from('tasks')
+        .select('id, users:assignee_id(full_name)')
+        .eq('work_item_id', id).eq('stage_id', work.current_stage_id)
+        .is('closed_at', null).maybeSingle(),
+    ]);
+    adminPeople = peopleRes.data ?? [];
+    currentTaskId = taskRes.data?.id ?? null;
+    currentAssigneeNameForTask =
+      (taskRes.data?.users as unknown as { full_name: string } | null)?.full_name ?? null;
+  }
 
   return (
     <div className="space-y-5">
@@ -181,6 +205,20 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
           />
         </div>
       </Section>
+
+      {canManage && (
+        <Section title="Admin controls">
+          <div className="mt-3">
+            <AdminControls
+              workItemId={id}
+              people={adminPeople}
+              currentTaskId={currentTaskId}
+              currentAssigneeName={currentAssigneeNameForTask ?? work.owner_name}
+              canDelete={canDelete}
+            />
+          </div>
+        </Section>
+      )}
 
       <div className="grid gap-5 lg:grid-cols-2">
         <Section title="Files" count={files.data?.length ?? 0}>
