@@ -48,11 +48,11 @@ export default async function BoardPage() {
   return (
     <div className="space-y-4">
       <div>
-        <Link href="/control-tower" className="text-sm text-slate-500 hover:text-slate-900">
+        <Link href="/control-tower" className="text-sm text-black hover:text-black">
           ← Control Tower
         </Link>
-        <h1 className="mt-2 text-xl font-semibold text-slate-900">Board</h1>
-        <p className="mt-1 max-w-2xl text-sm text-slate-500">
+        <h1 className="mt-2 text-xl font-semibold text-black">Board</h1>
+        <p className="mt-1 max-w-2xl text-sm text-black">
           Drag a card you hold into the next column to submit or approve it, or back a column to
           request changes. Cards you don&rsquo;t currently hold, and work on hold, aren&rsquo;t
           draggable.
@@ -60,7 +60,7 @@ export default async function BoardPage() {
       </div>
 
       {columns.length === 0 ? (
-        <div className="rounded-lg border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
+        <div className="rounded-lg border border-slate-200 bg-white p-10 text-center text-sm text-black">
           No active work to show.
         </div>
       ) : (

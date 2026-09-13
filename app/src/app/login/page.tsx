@@ -33,7 +33,7 @@ function LoginForm() {
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-slate-700">
+        <label htmlFor="email" className="block text-sm font-medium text-black">
           Email
         </label>
         <input
@@ -44,7 +44,7 @@ function LoginForm() {
         />
       </div>
       <div>
-        <label htmlFor="password" className="block text-sm font-medium text-slate-700">
+        <label htmlFor="password" className="block text-sm font-medium text-black">
           Password
         </label>
         <input
@@ -76,9 +76,9 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
       <div className="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="text-lg font-semibold text-slate-900">Workflow Control Tower</h1>
-        <p className="mt-1 mb-6 text-sm text-slate-500">Sign in to see your work.</p>
-        <Suspense fallback={<p className="text-sm text-slate-400">Loading…</p>}>
+        <h1 className="text-lg font-semibold text-black">Workflow Control Tower</h1>
+        <p className="mt-1 mb-6 text-sm text-black">Sign in to see your work.</p>
+        <Suspense fallback={<p className="text-sm text-black">Loading…</p>}>
           <LoginForm />
         </Suspense>
       </div>

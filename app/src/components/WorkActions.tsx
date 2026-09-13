@@ -53,7 +53,7 @@ export function WorkActions({ workItemId, canSubmit, canApprove, canHold, isOnHo
   // who expected a button understands the work simply is not with them.
   if (!canSubmit && !canApprove && !canHold) {
     return (
-      <p className="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-500">
+      <p className="rounded-md bg-slate-50 px-3 py-2 text-sm text-black">
         This work is not with you right now, so there is nothing to action.
       </p>
     );
@@ -92,14 +92,14 @@ export function WorkActions({ workItemId, canSubmit, canApprove, canHold, isOnHo
           <button
             onClick={() => run(() => resumeWork(workItemId))} disabled={pending}
             className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm
-                       font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+                       font-medium text-black hover:bg-slate-50 disabled:opacity-50">
             Resume
           </button>
         ) : (
           <button
             onClick={() => setDialog('hold')} disabled={pending}
             className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm
-                       font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+                       font-medium text-black hover:bg-slate-50 disabled:opacity-50">
             Put On Hold
           </button>
         ))}
@@ -116,13 +116,13 @@ export function WorkActions({ workItemId, canSubmit, canApprove, canHold, isOnHo
       {dialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
           <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-lg">
-            <h2 className="text-base font-semibold text-slate-900">
+            <h2 className="text-base font-semibold text-black">
               {dialog === 'submit'   && 'Submit for next stage'}
               {dialog === 'approve'  && 'Approve this work'}
               {dialog === 'changes'  && 'Request changes'}
               {dialog === 'hold'     && 'Put on hold'}
             </h2>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-black">
               {dialog === 'submit'  && 'This hands the work to whoever the workflow assigns next.'}
               {dialog === 'approve' && 'This moves the work forward to the next stage.'}
               {dialog === 'changes' && 'This sends the work back to whoever submitted it last.'}
@@ -131,7 +131,7 @@ export function WorkActions({ workItemId, canSubmit, canApprove, canHold, isOnHo
 
             {dialog === 'hold' && (
               <div className="mt-4">
-                <label htmlFor="blocker" className="block text-sm font-medium text-slate-700">
+                <label htmlFor="blocker" className="block text-sm font-medium text-black">
                   What is it waiting on?
                 </label>
                 <select
@@ -143,11 +143,11 @@ export function WorkActions({ workItemId, canSubmit, canApprove, canHold, isOnHo
             )}
 
             <div className="mt-4">
-              <label htmlFor="note" className="block text-sm font-medium text-slate-700">
+              <label htmlFor="note" className="block text-sm font-medium text-black">
                 {dialog === 'changes' || dialog === 'hold' ? 'Reason' : 'Notes'}
                 {(dialog === 'changes' || dialog === 'hold')
                   ? <span className="text-red-600"> *</span>
-                  : <span className="font-normal text-slate-400"> (optional)</span>}
+                  : <span className="font-normal text-black"> (optional)</span>}
               </label>
               <textarea
                 id="note" rows={3} value={text} onChange={(e) => setText(e.target.value)}
@@ -167,7 +167,7 @@ export function WorkActions({ workItemId, canSubmit, canApprove, canHold, isOnHo
 
             <div className="mt-5 flex justify-end gap-2">
               <button onClick={close} disabled={pending}
-                className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700
+                className="rounded-md border border-slate-300 px-3 py-2 text-sm text-black
                            hover:bg-slate-50 disabled:opacity-50">
                 Cancel
               </button>

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   approveWorkItem, submitForNextStage, requestChanges, type ActionResult,
 } from '@/lib/workflow/actions';
-import { StatusBadge, PriorityBadge } from '@/components/Badges';
+import { StatusBadge, PriorityBadge, StageBadge } from '@/components/Badges';
 import { formatDaysRemaining, humanise } from '@/lib/format';
 import type { BoardCard, BoardColumn } from '@/lib/workflow/board';
 
@@ -98,10 +98,8 @@ export function BoardView({ columns }: { columns: BoardColumn[] }) {
             }`}
           >
             <div className="flex items-center justify-between px-1.5 py-1">
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                {humanise(col.stageName)}
-              </h2>
-              <span className="text-xs font-medium text-slate-400">{col.cards.length}</span>
+              <StageBadge stage={col.stageName} />
+              <span className="text-xs font-medium text-black">{col.cards.length}</span>
             </div>
 
             <div className="flex flex-col gap-2">
@@ -134,11 +132,11 @@ export function BoardView({ columns }: { columns: BoardColumn[] }) {
                   }`}
                 >
                   <Link href={`/work/${card.id}`}
-                    className="font-medium text-slate-900 underline-offset-2 hover:underline">
+                    className="font-medium text-black underline-offset-2 hover:underline">
                     {card.name}
                   </Link>
                   {card.jobName && card.jobName !== card.name && (
-                    <div className="mt-0.5 truncate text-xs text-slate-500">{card.jobName}</div>
+                    <div className="mt-0.5 truncate text-xs text-black">{card.jobName}</div>
                   )}
                   <div className="mt-2 flex flex-wrap items-center gap-1">
                     <StatusBadge status={card.status} />
@@ -147,7 +145,7 @@ export function BoardView({ columns }: { columns: BoardColumn[] }) {
                       <span className="opacity-60" title="Approval gate" aria-label="approval gate">⚑</span>
                     )}
                   </div>
-                  <div className="mt-1.5 flex items-center justify-between gap-2 text-xs text-slate-500">
+                  <div className="mt-1.5 flex items-center justify-between gap-2 text-xs text-black">
                     <span className="truncate">{card.pendingWith ?? card.ownerName ?? '—'}</span>
                     <span className={card.isOverdue ? 'whitespace-nowrap font-medium text-red-700' : 'whitespace-nowrap'}>
                       {formatDaysRemaining(card.daysRemaining)}
@@ -156,7 +154,7 @@ export function BoardView({ columns }: { columns: BoardColumn[] }) {
                 </div>
               ))}
               {col.cards.length === 0 && (
-                <p className="px-1.5 py-3 text-center text-xs text-slate-400">Empty</p>
+                <p className="px-1.5 py-3 text-center text-xs text-black">Empty</p>
               )}
             </div>
           </div>
@@ -166,12 +164,12 @@ export function BoardView({ columns }: { columns: BoardColumn[] }) {
       {pending && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
           <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-lg">
-            <h2 className="text-base font-semibold text-slate-900">
+            <h2 className="text-base font-semibold text-black">
               {pending.direction === 'forward'
                 ? (pending.card.canApprove ? 'Approve this work' : 'Submit for next stage')
                 : 'Request changes'}
             </h2>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-black">
               {pending.direction === 'forward'
                 ? `Moves "${pending.card.name}" forward. The workflow decides the exact next ` +
                   'stage, which may not be the column you dropped it on.'
@@ -179,11 +177,11 @@ export function BoardView({ columns }: { columns: BoardColumn[] }) {
             </p>
 
             <div className="mt-4">
-              <label htmlFor="board-note" className="block text-sm font-medium text-slate-700">
+              <label htmlFor="board-note" className="block text-sm font-medium text-black">
                 {pending.direction === 'backward' ? 'Reason' : 'Notes'}
                 {pending.direction === 'backward'
                   ? <span className="text-red-600"> *</span>
-                  : <span className="font-normal text-slate-400"> (optional)</span>}
+                  : <span className="font-normal text-black"> (optional)</span>}
               </label>
               <textarea
                 id="board-note" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)}
@@ -201,7 +199,7 @@ export function BoardView({ columns }: { columns: BoardColumn[] }) {
 
             <div className="mt-5 flex justify-end gap-2">
               <button onClick={close} disabled={busy}
-                className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700
+                className="rounded-md border border-slate-300 px-3 py-2 text-sm text-black
                            hover:bg-slate-50 disabled:opacity-50">
                 Cancel
               </button>

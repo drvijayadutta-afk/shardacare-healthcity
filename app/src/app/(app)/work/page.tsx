@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
-import { StatusBadge, PriorityBadge, OverdueBadge } from '@/components/Badges';
-import { formatDate, formatDaysRemaining, humanise, DASH } from '@/lib/format';
+import { StatusBadge, PriorityBadge, OverdueBadge, StageBadge } from '@/components/Badges';
+import { formatDate, formatDaysRemaining, DASH } from '@/lib/format';
 import {
   FILTERS, PRIMARY_FILTERS, isFilterKey, applyFilter, applyOwnerFilter, type FilterKey,
 } from '@/lib/workflow/filters';
@@ -31,14 +31,14 @@ export default async function WorkListPage({
   return (
     <div>
       <div className="mb-4">
-        <Link href="/control-tower" className="text-sm text-slate-500 hover:text-slate-900">
+        <Link href="/control-tower" className="text-sm text-black hover:text-black">
           ← Control Tower
         </Link>
-        <h1 className="mt-2 text-xl font-semibold text-slate-900">
+        <h1 className="mt-2 text-xl font-semibold text-black">
           {FILTERS[filter]}
-          {name && <span className="font-normal text-slate-500"> · {name}</span>}
+          {name && <span className="font-normal text-black"> · {name}</span>}
         </h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-black">
           {error ? 'Could not load' : `${rows.length} ${rows.length === 1 ? 'item' : 'items'}`}
         </p>
       </div>
@@ -52,7 +52,7 @@ export default async function WorkListPage({
             className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${
               k === filter
                 ? 'bg-slate-900 text-white ring-slate-900'
-                : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50'}`}>
+                : 'bg-white text-black ring-slate-200 hover:bg-slate-50'}`}>
             {FILTERS[k]}
           </Link>
         );
@@ -64,7 +64,7 @@ export default async function WorkListPage({
             {/* Open by default when the active filter is one of the "more" ones,
                 so landing here from a link never hides which filter is applied. */}
             <details className="mt-1.5" open={secondary.includes(filter)}>
-              <summary className="cursor-pointer text-xs font-medium text-slate-500 hover:text-slate-700">
+              <summary className="cursor-pointer text-xs font-medium text-black hover:text-black">
                 More filters
               </summary>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -80,14 +80,14 @@ export default async function WorkListPage({
           {error.message}
         </div>
       ) : !rows.length ? (
-        <div className="rounded-lg border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
+        <div className="rounded-lg border border-slate-200 bg-white p-10 text-center text-sm text-black">
           Nothing matches this filter.
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
           <table className="min-w-full divide-y divide-slate-200 text-sm">
             <thead className="bg-slate-50">
-              <tr className="text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+              <tr className="text-left text-xs font-medium uppercase tracking-wide text-black">
                 <th scope="col" className="px-4 py-3">Work</th>
                 <th scope="col" className="px-4 py-3">Stage</th>
                 <th scope="col" className="px-4 py-3">Owner</th>
@@ -103,24 +103,24 @@ export default async function WorkListPage({
                 <tr key={w.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3">
                     <Link href={`/work/${w.id}`}
-                      className="font-medium text-slate-900 underline-offset-2 hover:underline">
+                      className="font-medium text-black underline-offset-2 hover:underline">
                       {w.name}
                     </Link>
                     {w.job_name && w.job_name !== w.name && (
-                      <div className="mt-0.5 text-xs text-slate-500">{w.job_name}</div>
+                      <div className="mt-0.5 text-xs text-black">{w.job_name}</div>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{humanise(w.stage_name)}</td>
-                  <td className="px-4 py-3 text-slate-600">{w.owner_name ?? DASH}</td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3"><StageBadge stage={w.stage_name} /></td>
+                  <td className="px-4 py-3 text-black">{w.owner_name ?? DASH}</td>
+                  <td className="px-4 py-3 text-black">
                     <span className={w.pending_with === 'unassigned' || w.pending_with === 'unknown'
                       ? 'text-amber-700' : ''}>{w.pending_with ?? DASH}</span>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-slate-600">
+                  <td className="px-4 py-3 whitespace-nowrap text-black">
                     {formatDate(w.stage_deadline ?? w.deadline)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    <span className={w.is_overdue ? 'font-medium text-red-700' : 'text-slate-600'}>
+                    <span className={w.is_overdue ? 'font-medium text-red-700' : 'text-black'}>
                       {formatDaysRemaining(w.days_remaining)}
                     </span>
                   </td>

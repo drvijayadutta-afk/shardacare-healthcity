@@ -28,11 +28,11 @@ export default async function NewWorkPage() {
 
   return (
     <div className="max-w-3xl">
-      <Link href="/control-tower" className="text-sm text-slate-500 hover:text-slate-900">
+      <Link href="/control-tower" className="text-sm text-black hover:text-black">
         ← Control Tower
       </Link>
-      <h1 className="mt-2 text-xl font-semibold text-slate-900">Add work</h1>
-      <p className="mb-6 mt-1 text-sm text-slate-500">
+      <h1 className="mt-2 text-xl font-semibold text-black">Add work</h1>
+      <p className="mb-6 mt-1 text-sm text-black">
         Starts at the leadership brief. Every handoff after that is automatic.
       </p>
       <NewWorkForm people={people} />

@@ -39,10 +39,10 @@ export default async function SetupRequiredPage({
 
   return (
     <main className="mx-auto max-w-xl px-4 py-16">
-      <h1 className="text-xl font-semibold text-slate-900">
+      <h1 className="text-xl font-semibold text-black">
         {varsAreSet ? 'Supabase is misconfigured' : 'Supabase is not configured'}
       </h1>
-      <p className="mt-2 text-sm text-slate-600">
+      <p className="mt-2 text-sm text-black">
         {varsAreSet
           ? 'The variables are set, but they will not work as they are:'
           : 'The app deployed successfully. It cannot reach Supabase because these environment variables are missing from this build.'}
@@ -70,8 +70,8 @@ export default async function SetupRequiredPage({
         <Var name="NEXT_PUBLIC_SUPABASE_ANON_KEY" missing={isMissing('NEXT_PUBLIC_SUPABASE_ANON_KEY')} />
       </ul>
 
-      <h2 className="mt-8 text-sm font-semibold text-slate-900">Fixing it on Vercel</h2>
-      <ol className="mt-2 list-decimal space-y-2 pl-5 text-sm text-slate-700">
+      <h2 className="mt-8 text-sm font-semibold text-black">Fixing it on Vercel</h2>
+      <ol className="mt-2 list-decimal space-y-2 pl-5 text-sm text-black">
         <li>Supabase dashboard → Project Settings → API.</li>
         <li>
           Copy <strong>Project URL</strong> and the <em>public</em> key. Depending
@@ -97,7 +97,7 @@ export default async function SetupRequiredPage({
         read the environment it is placed in.
       </p>
 
-      <p className="mt-6 text-xs text-slate-500">
+      <p className="mt-6 text-xs text-black">
         Full instructions: <code>database/DEPLOY.md</code> in the repository.
         Once this page clears, the schema still has to be applied before signing
         in will work — see <code>database/SETUP.md</code>.

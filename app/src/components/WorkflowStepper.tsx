@@ -35,7 +35,7 @@ export function WorkflowStepper({
           ? 'bg-slate-900 text-white ring-slate-900'
           : done
             ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
-            : 'bg-white text-slate-400 ring-slate-200';
+            : 'bg-white text-black ring-slate-200';
 
         return (
           <li key={s.id}

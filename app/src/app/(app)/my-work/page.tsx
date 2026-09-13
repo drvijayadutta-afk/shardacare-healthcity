@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentUser } from '@/lib/auth/roles';
-import { StatusBadge, PriorityBadge, OverdueBadge } from '@/components/Badges';
+import { StatusBadge, PriorityBadge, OverdueBadge, StageBadge } from '@/components/Badges';
 import { formatDate, formatDaysRemaining, actionLabel, humanise, DASH } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
@@ -63,8 +63,8 @@ export default async function MyWorkPage() {
   return (
     <div>
       <div className="mb-5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h1 className="text-xl font-semibold text-slate-900">My Work</h1>
-        <p className="text-sm text-slate-500">
+        <h1 className="text-xl font-semibold text-black">My Work</h1>
+        <p className="text-sm text-black">
           {tasks.length === 0
             ? 'Nothing assigned to you'
             : `${tasks.length} open ${tasks.length === 1 ? 'item' : 'items'}`}
@@ -74,11 +74,11 @@ export default async function MyWorkPage() {
 
       {tasks.length === 0 ? (
         <div className="rounded-lg border border-slate-200 bg-white p-10 text-center">
-          <p className="text-sm font-medium text-slate-900">Nothing is assigned to you</p>
+          <p className="text-sm font-medium text-black">Nothing is assigned to you</p>
 
           {totalWork > 0 ? (
             <>
-              <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
+              <p className="mx-auto mt-2 max-w-md text-sm text-black">
                 This page shows only work assigned to you. There {totalWork === 1
                   ? 'is 1 item' : `are ${totalWork} items`} in the system — most
                 imported from the job list with no owner named, so nobody holds
@@ -90,24 +90,24 @@ export default async function MyWorkPage() {
                   See all {totalWork} items
                 </Link>
                 <Link href="/work?filter=unassigned"
-                  className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                  className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-black hover:bg-slate-50">
                   Unassigned
                 </Link>
                 <Link href="/work?filter=needs_review"
-                  className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                  className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-black hover:bg-slate-50">
                   Needs review
                 </Link>
               </div>
             </>
           ) : (
-            <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
+            <p className="mx-auto mt-2 max-w-md text-sm text-black">
               There is no work in the system at all. If you expected the imported
               job list to be here, the seed has not run — check{' '}
               <code className="text-xs">database/supabase-bundle/00_diagnose.sql</code>.
             </p>
           )}
 
-          <p className="mt-4 text-xs text-slate-400">
+          <p className="mt-4 text-xs text-black">
             Signed in as {user?.fullName}
             {user && user.roles.length > 0 && ` · ${user.roles.map(humanise).join(', ')}`}
           </p>
@@ -116,7 +116,7 @@ export default async function MyWorkPage() {
         <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
           <table className="min-w-full divide-y divide-slate-200 text-sm">
             <thead className="bg-slate-50">
-              <tr className="text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+              <tr className="text-left text-xs font-medium uppercase tracking-wide text-black">
                 <th scope="col" className="px-4 py-3">Work</th>
                 <th scope="col" className="px-4 py-3">Campaign</th>
                 <th scope="col" className="px-4 py-3">Current Stage</th>
@@ -134,21 +134,21 @@ export default async function MyWorkPage() {
                   <td className="px-4 py-3">
                     <Link
                       href={`/work/${t.work_item_id}`}
-                      className="font-medium text-slate-900 underline-offset-2 hover:underline"
+                      className="font-medium text-black underline-offset-2 hover:underline"
                     >
                       {t.work_name}
                     </Link>
                     {t.job_name && t.job_name !== t.work_name && (
-                      <div className="mt-0.5 text-xs text-slate-500">{t.job_name}</div>
+                      <div className="mt-0.5 text-xs text-black">{t.job_name}</div>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{t.campaign_name ?? DASH}</td>
-                  <td className="px-4 py-3 text-slate-600">{humanise(t.stage_name)}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-slate-600">
+                  <td className="px-4 py-3 text-black">{t.campaign_name ?? DASH}</td>
+                  <td className="px-4 py-3"><StageBadge stage={t.stage_name} /></td>
+                  <td className="px-4 py-3 whitespace-nowrap text-black">
                     {formatDate(t.effective_due_date)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    <span className={t.is_overdue ? 'font-medium text-red-700' : 'text-slate-600'}>
+                    <span className={t.is_overdue ? 'font-medium text-red-700' : 'text-black'}>
                       {formatDaysRemaining(t.days_remaining)}
                     </span>
                   </td>
@@ -159,8 +159,8 @@ export default async function MyWorkPage() {
                       <OverdueBadge days={t.days_remaining} />
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{t.pending_with ?? DASH}</td>
-                  <td className="px-4 py-3 text-slate-600">{actionLabel(t.action_type)}</td>
+                  <td className="px-4 py-3 text-black">{t.pending_with ?? DASH}</td>
+                  <td className="px-4 py-3 text-black">{actionLabel(t.action_type)}</td>
                 </tr>
               ))}
             </tbody>

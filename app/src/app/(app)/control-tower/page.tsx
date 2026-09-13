@@ -2,7 +2,8 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentUser, canViewAllWork } from '@/lib/auth/roles';
-import { StatusBadge, PriorityBadge } from '@/components/Badges';
+import { StatusBadge, PriorityBadge, StageBadge } from '@/components/Badges';
+import { TeamRoster, type RosterPerson } from '@/components/TeamRoster';
 import { formatDate, formatDaysRemaining, humanise, actionLabel, DASH } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
@@ -19,16 +20,16 @@ function Tile({ label, value, filter, tone = 'default' }: {
   tone?: 'default' | 'warn' | 'bad' | 'good';
 }) {
   const tones = {
-    default: 'text-slate-900',
+    default: 'text-black',
     warn:    'text-amber-700',
-    bad:     value > 0 ? 'text-red-700' : 'text-slate-900',
+    bad:     value > 0 ? 'text-red-700' : 'text-black',
     good:    'text-emerald-700',
   };
   return (
     <Link href={`/work?filter=${filter}`}
       className="rounded-lg border border-slate-200 bg-white p-4 transition hover:border-slate-400 hover:shadow-sm">
       <div className={`text-2xl font-semibold tabular-nums ${tones[tone]}`}>{value}</div>
-      <div className="mt-0.5 text-xs font-medium text-slate-500">{label}</div>
+      <div className="mt-0.5 text-xs font-medium text-black">{label}</div>
     </Link>
   );
 }
@@ -38,15 +39,15 @@ function Panel({ title, subtitle, children }: {
 }) {
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-5">
-      <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-      {subtitle && <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>}
+      <h2 className="text-sm font-semibold text-black">{title}</h2>
+      {subtitle && <p className="mt-0.5 text-xs text-black">{subtitle}</p>}
       <div className="mt-3">{children}</div>
     </section>
   );
 }
 
 function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="text-sm text-slate-500">{children}</p>;
+  return <p className="text-sm text-black">{children}</p>;
 }
 
 export default async function ControlTowerPage() {
@@ -84,6 +85,10 @@ export default async function ControlTowerPage() {
   // to switch to My Work to see it makes this a report rather than a console.
   const mine = await supabase.from('v_my_tasks').select('*')
     .order('effective_due_date', { ascending: true, nullsFirst: false });
+
+  const roster = await supabase.from('users')
+    .select('id, full_name, user_roles(roles(name))')
+    .eq('is_active', true).order('full_name');
 
   // Every query is checked, not just the metrics one. A failing breakdown RPC
   // returns no rows, which would otherwise render as the panel's empty state --
@@ -130,13 +135,21 @@ export default async function ControlTowerPage() {
 
   const m = metricsRes.data as Metrics;
 
+  type RosterRow = { id: string; full_name: string; user_roles: { roles: { name: string } | null }[] };
+  const rosterPeople: RosterPerson[] = ((roster.data ?? []) as unknown as RosterRow[]).map((u) => ({
+    id: u.id,
+    full_name: u.full_name,
+    roles: (u.user_roles ?? []).map((r) => r.roles?.name).filter(Boolean) as string[],
+  }));
+
   return (
+    <div className="lg:grid lg:grid-cols-[1fr_260px] lg:items-start lg:gap-5">
     <div className="space-y-5">
       <div>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-xl font-semibold text-slate-900">Control Tower</h1>
-            <p className="mt-1 text-sm text-slate-500">
+            <h1 className="text-xl font-semibold text-black">Control Tower</h1>
+            <p className="mt-1 text-sm text-black">
               Every number is a live count. Click one to open exactly those items.
             </p>
           </div>
@@ -182,12 +195,12 @@ export default async function ControlTowerPage() {
             {mine.data.map((t) => (
               <li key={t.task_id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm">
                 <Link href={`/work/${t.work_item_id}`}
-                  className="font-medium text-slate-900 underline-offset-2 hover:underline">
+                  className="font-medium text-black underline-offset-2 hover:underline">
                   {t.work_name}
                 </Link>
-                <span className="text-slate-500">{humanise(t.stage_name)}</span>
-                <span className="text-slate-500">{actionLabel(t.action_type)}</span>
-                <span className={`ml-auto ${t.is_overdue ? 'font-medium text-red-700' : 'text-slate-500'}`}>
+                <StageBadge stage={t.stage_name} />
+                <span className="text-black">{actionLabel(t.action_type)}</span>
+                <span className={`ml-auto ${t.is_overdue ? 'font-medium text-red-700' : 'text-black'}`}>
                   {formatDaysRemaining(t.days_remaining)}
                 </span>
                 <PriorityBadge priority={t.task_priority} />
@@ -209,12 +222,12 @@ export default async function ControlTowerPage() {
             {critical.data.map((w) => (
               <li key={w.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm">
                 <Link href={`/work/${w.id}`}
-                  className="font-medium text-slate-900 underline-offset-2 hover:underline">
+                  className="font-medium text-black underline-offset-2 hover:underline">
                   {w.name}
                 </Link>
-                <span className="text-slate-500">{humanise(w.stage_name)}</span>
-                <span className="text-slate-500">{w.pending_with ?? DASH}</span>
-                <span className={`ml-auto ${w.is_overdue ? 'font-medium text-red-700' : 'text-slate-500'}`}>
+                <StageBadge stage={w.stage_name} />
+                <span className="text-black">{w.pending_with ?? DASH}</span>
+                <span className={`ml-auto ${w.is_overdue ? 'font-medium text-red-700' : 'text-black'}`}>
                   {formatDaysRemaining(w.days_remaining)}
                 </span>
                 <StatusBadge status={w.status} />
@@ -233,12 +246,12 @@ export default async function ControlTowerPage() {
                 const pct = Math.round((Number(r.work_count) / max) * 100);
                 return (
                   <li key={r.stage_name} className="flex items-center gap-3 text-sm">
-                    <span className="w-40 shrink-0 truncate text-slate-700">{humanise(r.stage_name)}</span>
+                    <span className="w-40 shrink-0 truncate"><StageBadge stage={r.stage_name} /></span>
                     <span className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
                       <span className="block h-full rounded-full bg-slate-400"
                             style={{ width: `${pct}%` }} />
                     </span>
-                    <span className="w-8 text-right tabular-nums text-slate-900">{r.work_count}</span>
+                    <span className="w-8 text-right tabular-nums text-black">{r.work_count}</span>
                   </li>
                 );
               })}
@@ -255,7 +268,7 @@ export default async function ControlTowerPage() {
                   {r.owner_id ? (
                     <Link
                       href={`/work?filter=active&owner=${r.owner_id}&name=${encodeURIComponent(r.owner_name)}`}
-                      className="flex-1 truncate text-slate-700 underline-offset-2 hover:underline">
+                      className="flex-1 truncate text-black underline-offset-2 hover:underline">
                       {r.owner_name}
                     </Link>
                   ) : (
@@ -269,7 +282,7 @@ export default async function ControlTowerPage() {
                       {r.overdue_count} overdue
                     </span>
                   )}
-                  <span className="w-8 text-right tabular-nums text-slate-900">{r.work_count}</span>
+                  <span className="w-8 text-right tabular-nums text-black">{r.work_count}</span>
                 </li>
               ))}
             </ul>
@@ -285,15 +298,15 @@ export default async function ControlTowerPage() {
                 <li key={r.pending_with} className="flex items-center gap-3 py-1.5 text-sm">
                   <span className={`flex-1 truncate ${
                     r.pending_with === 'Unassigned' || r.pending_with === 'unknown'
-                      ? 'text-amber-700' : 'text-slate-700'}`}>
+                      ? 'text-amber-700' : 'text-black'}`}>
                     {r.pending_with}
                   </span>
                   {r.oldest_days > 0 && (
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs text-black">
                       waiting {r.oldest_days}d
                     </span>
                   )}
-                  <span className="w-8 text-right tabular-nums text-slate-900">{r.work_count}</span>
+                  <span className="w-8 text-right tabular-nums text-black">{r.work_count}</span>
                 </li>
               ))}
             </ul>
@@ -305,11 +318,11 @@ export default async function ControlTowerPage() {
             <ul className="divide-y divide-slate-100">
               {poBlocks.data.map((r: { po_status: string; work_count: number; overdue_count: number }) => (
                 <li key={r.po_status} className="flex items-center gap-3 py-1.5 text-sm">
-                  <span className="flex-1 text-slate-700">{humanise(r.po_status)}</span>
+                  <span className="flex-1 text-black">{humanise(r.po_status)}</span>
                   {Number(r.overdue_count) > 0 && (
                     <span className="text-xs font-medium text-red-700">{r.overdue_count} overdue</span>
                   )}
-                  <span className="w-8 text-right tabular-nums text-slate-900">{r.work_count}</span>
+                  <span className="w-8 text-right tabular-nums text-black">{r.work_count}</span>
                 </li>
               ))}
             </ul>
@@ -323,15 +336,15 @@ export default async function ControlTowerPage() {
             {upcoming.data.map((w) => (
               <li key={w.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm">
                 <Link href={`/work/${w.id}`}
-                  className="font-medium text-slate-900 underline-offset-2 hover:underline">
+                  className="font-medium text-black underline-offset-2 hover:underline">
                   {w.name}
                 </Link>
-                <span className="text-slate-500">{w.pending_with ?? DASH}</span>
+                <span className="text-black">{w.pending_with ?? DASH}</span>
                 <PriorityBadge priority={w.priority} />
-                <span className="ml-auto whitespace-nowrap text-slate-600">
+                <span className="ml-auto whitespace-nowrap text-black">
                   {formatDate(w.stage_deadline)}
                 </span>
-                <span className="w-20 text-right text-slate-500">
+                <span className="w-20 text-right text-black">
                   {formatDaysRemaining(w.days_remaining)}
                 </span>
               </li>
@@ -344,6 +357,17 @@ export default async function ControlTowerPage() {
           </Empty>
         )}
       </Panel>
+    </div>
+
+    <div className="mt-5 lg:mt-0">
+      {roster.error ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          Could not load the team list — {roster.error.message}
+        </div>
+      ) : (
+        <TeamRoster people={rosterPeople} />
+      )}
+    </div>
     </div>
   );
 }
