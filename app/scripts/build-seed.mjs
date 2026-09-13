@@ -371,10 +371,11 @@ sql.push(`\n-- --- Jobs and work items -----------------------------------------
 let itemCount = 0;
 for (const job of jobs) {
   const jobTitle = job.title;
+  const jobRef = `joblist:job:${job.idx}`;
   sql.push(`
-INSERT INTO public.jobs (name, category, description)
-VALUES (${q(jobTitle)}, NULL, ${q('Imported verbatim from the 10th Sept job list')})
-ON CONFLICT DO NOTHING;`);
+INSERT INTO public.jobs (name, category, description, source_ref)
+VALUES (${q(jobTitle)}, NULL, ${q('Imported verbatim from the 10th Sept job list')}, ${q(jobRef)})
+ON CONFLICT (source_ref) DO NOTHING;`);
 
   for (const item of job.items) {
     itemCount++;
@@ -396,8 +397,9 @@ ON CONFLICT DO NOTHING;`);
       else pendingWithLabel = 'unknown';
     }
 
+    const itemRef = `joblist:item:${item.idx}`;
     sql.push(`
-WITH j AS (SELECT id FROM public.jobs WHERE name = ${q(jobTitle)} LIMIT 1),
+WITH j AS (SELECT id FROM public.jobs WHERE source_ref = ${q(jobRef)}),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
            WHERE workflow_id=(SELECT id FROM w) AND name=${q(stage)}),
@@ -405,7 +407,7 @@ WITH j AS (SELECT id FROM public.jobs WHERE name = ${q(jobTitle)} LIMIT 1),
 INSERT INTO public.work_items
   (job_id, workflow_id, current_stage_id, name, status, deadline,
    pending_with_id, pending_with_label, approval_required, approval_status,
-   needs_review, review_notes, source_text)
+   needs_review, review_notes, source_text, source_ref)
 SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        ${q(item.title)},
        ${st.status ? q(st.status) : `'NOT_STARTED'`},
@@ -416,15 +418,19 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        ${stage === 'APPROVAL' ? `'PENDING'` : `'NOT_REQUIRED'`},
        ${needsReview ? 'TRUE' : 'FALSE'},
        ${needsReview ? q(reviewNotes) : 'NULL'},
-       ${q(item.title)};`);
+       ${q(item.title)},
+       ${q(itemRef)}
+ON CONFLICT (source_ref) DO NOTHING;`);
 
     // Collaborators — every person named on the line is preserved.
+    // Matched on source_ref, not source_text: two different lines can carry
+    // the same text ("Whatsapp" appears under both Cardiac and Mother & Child).
     for (const person of item.people) {
       sql.push(`
 INSERT INTO public.work_item_owners (work_item_id, user_id, owner_role)
 SELECT wi.id, u.id, 'COLLABORATOR'
 FROM public.work_items wi, public.users u
-WHERE wi.source_text = ${q(item.title)} AND u.full_name = ${q(person)}
+WHERE wi.source_ref = ${q(itemRef)} AND u.full_name = ${q(person)}
 ON CONFLICT DO NOTHING;`);
     }
   }

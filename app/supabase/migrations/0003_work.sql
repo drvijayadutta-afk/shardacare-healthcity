@@ -26,6 +26,12 @@ CREATE TABLE IF NOT EXISTS public.jobs (
   name         TEXT NOT NULL,
   description  TEXT,
   category     TEXT,
+  -- Stable key for rows created by an import, e.g. 'joblist:8' = line 8 of the
+  -- source document. Nullable (hand-created jobs have none) and UNIQUE, so an
+  -- import can be re-run without duplicating what it already inserted.
+  -- Postgres permits many NULLs in a UNIQUE column, so this constrains only
+  -- imported rows.
+  source_ref   TEXT UNIQUE,
   campaign_id  UUID REFERENCES public.campaigns(id) ON DELETE SET NULL,
   department_id UUID REFERENCES public.departments(id),
   requester_id UUID REFERENCES public.users(id),
@@ -100,6 +106,9 @@ CREATE TABLE IF NOT EXISTS public.work_items (
   needs_review  BOOLEAN NOT NULL DEFAULT FALSE,
   review_notes  TEXT,
   source_text   TEXT,
+  -- See jobs.source_ref. Makes the seed re-runnable and lets any row be traced
+  -- back to the exact line of the source document it came from.
+  source_ref    TEXT UNIQUE,
 
   submission_count INT NOT NULL DEFAULT 0,
   handoff_at    TIMESTAMPTZ,

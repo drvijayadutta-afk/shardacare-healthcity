@@ -7,7 +7,13 @@
 -- opposite of "a user should see only tasks assigned to them".
 -- ============================================================================
 
+-- Dropped in reverse dependency order: v_my_tasks selects from v_work_items,
+-- so dropping the base view first fails on any re-run. This file must stay
+-- re-runnable — it is applied by pasting into the Supabase SQL Editor, which
+-- people do repeatedly.
+DROP VIEW IF EXISTS public.v_my_tasks;
 DROP VIEW IF EXISTS public.v_work_items;
+
 CREATE VIEW public.v_work_items WITH (security_invoker = true) AS
 SELECT
   w.id,
