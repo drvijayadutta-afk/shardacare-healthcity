@@ -195,8 +195,33 @@ export async function addComment(
 }
 
 /* -------------------------------------------------------------------------- */
-/* Admin overrides — reassignment and task removal                           */
+/* Admin overrides — adding, reassigning, and deleting tasks                 */
 /* -------------------------------------------------------------------------- */
+
+export async function addTaskToWorkItem(
+  workItemId: string,
+  assigneeId: string,
+  note?: string,
+): Promise<ActionResult> {
+  if (!assigneeId) return { ok: false, message: 'Choose someone to give this task to.' };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('add_task_to_work_item', {
+    p_work_item_id: workItemId,
+    p_assignee_id: assigneeId,
+    p_note: note?.trim() || null,
+  });
+
+  if (error) return { ok: false, message: describeError(error.code, error.message) };
+
+  refresh(workItemId);
+  const result = data as Record<string, unknown>;
+  return {
+    ok: true,
+    message: `Task added for ${result.assignee_name}.`,
+    detail: result,
+  };
+}
 
 export async function reassignWorkItem(
   workItemId: string,

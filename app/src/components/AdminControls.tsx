@@ -2,11 +2,11 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { reassignWorkItem, removeTask, type ActionResult } from '@/lib/workflow/actions';
+import { addTaskToWorkItem, reassignWorkItem, removeTask, type ActionResult } from '@/lib/workflow/actions';
 
 export interface AdminPerson { id: string; full_name: string }
 
-type Dialog = 'reassign' | 'delete' | null;
+type Dialog = 'add' | 'reassign' | 'delete' | null;
 
 /**
  * An override panel for ADMIN / WORKFLOW_MANAGER, separate from the normal
@@ -52,14 +52,20 @@ export function AdminControls({
 
   return (
     <div>
-      <p className="mb-3 text-xs text-slate-500">
+      <p className="mb-3 text-xs text-black">
         Overrides the normal handoff. Visible to admins and workflow managers only.
       </p>
       <div className="flex flex-wrap gap-2">
         <button
+          onClick={() => setDialog('add')} disabled={pending}
+          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm
+                     font-medium text-black hover:bg-slate-50 disabled:opacity-50">
+          Add task
+        </button>
+        <button
           onClick={() => setDialog('reassign')} disabled={pending}
           className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm
-                     font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+                     font-medium text-black hover:bg-slate-50 disabled:opacity-50">
           Reassign
         </button>
         {currentTaskId && canDelete && (
@@ -83,24 +89,34 @@ export function AdminControls({
       {dialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
           <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-lg">
-            <h2 className="text-base font-semibold text-slate-900">
-              {dialog === 'reassign' ? 'Reassign this work' : 'Delete the current task'}
+            <h2 className="text-base font-semibold text-black">
+              {dialog === 'add' && 'Add a task'}
+              {dialog === 'reassign' && 'Reassign this work'}
+              {dialog === 'delete' && 'Delete the current task'}
             </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              {dialog === 'reassign'
-                ? `Moves the current stage to someone else${
-                    currentAssigneeName ? `, off ${currentAssigneeName}` : ''
-                  }. They get a task exactly as if the workflow had handed it to them.`
-                : `Removes ${currentAssigneeName ?? "the current holder's"} open task outright, ` +
+            <p className="mt-1 text-sm text-black">
+              {dialog === 'add' &&
+                `Gives someone a task on this stage without touching${
+                  currentAssigneeName ? ` ${currentAssigneeName}'s` : ''
+                } own task — use this for a helper or a second pair of eyes. ${
+                  currentAssigneeName ? '' : 'Nobody currently holds this stage, so this also becomes the official handoff.'
+                }`}
+              {dialog === 'reassign' &&
+                `Moves the current stage to someone else${
+                  currentAssigneeName ? `, off ${currentAssigneeName}` : ''
+                }. They get a task exactly as if the workflow had handed it to them.`}
+              {dialog === 'delete' &&
+                `Removes ${currentAssigneeName ?? "the current holder's"} open task outright, ` +
                   'rather than submitting or requesting changes. Use this to correct a mistake — ' +
                   'a duplicate task, or the wrong person — not as a way to skip a stage. ' +
                   'The work item becomes unassigned unless someone else still holds a task on it.'}
             </p>
 
-            {dialog === 'reassign' && (
+            {(dialog === 'add' || dialog === 'reassign') && (
               <div className="mt-4">
-                <label htmlFor="admin-person" className="block text-sm font-medium text-slate-700">
-                  Reassign to <span className="text-red-600">*</span>
+                <label htmlFor="admin-person" className="block text-sm font-medium text-black">
+                  {dialog === 'add' ? 'Give the task to' : 'Reassign to'}{' '}
+                  <span className="text-red-600">*</span>
                 </label>
                 <select
                   id="admin-person" value={personId} onChange={(e) => setPersonId(e.target.value)}
@@ -113,9 +129,9 @@ export function AdminControls({
             )}
 
             <div className="mt-4">
-              <label htmlFor="admin-note" className="block text-sm font-medium text-slate-700">
+              <label htmlFor="admin-note" className="block text-sm font-medium text-black">
                 {dialog === 'delete' ? 'Reason' : 'Note'}
-                <span className="font-normal text-slate-400"> (optional)</span>
+                <span className="font-normal text-black"> (optional)</span>
               </label>
               <textarea
                 id="admin-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)}
@@ -132,19 +148,22 @@ export function AdminControls({
 
             <div className="mt-5 flex justify-end gap-2">
               <button onClick={close} disabled={pending}
-                className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700
+                className="rounded-md border border-slate-300 px-3 py-2 text-sm text-black
                            hover:bg-slate-50 disabled:opacity-50">
                 Cancel
               </button>
               <button
-                disabled={pending || (dialog === 'reassign' && !personId)}
+                disabled={pending || ((dialog === 'add' || dialog === 'reassign') && !personId)}
                 onClick={() => {
-                  if (dialog === 'reassign') run(() => reassignWorkItem(workItemId, personId, note));
+                  if (dialog === 'add') run(() => addTaskToWorkItem(workItemId, personId, note));
+                  else if (dialog === 'reassign') run(() => reassignWorkItem(workItemId, personId, note));
                   else if (currentTaskId) run(() => removeTask(currentTaskId, note));
                 }}
                 className={`rounded-md px-3 py-2 text-sm font-medium text-white disabled:opacity-50 ${
                   dialog === 'delete' ? 'bg-red-600 hover:bg-red-700' : 'bg-slate-900 hover:bg-slate-800'}`}>
-                {pending ? 'Working…' : dialog === 'delete' ? 'Delete task' : 'Reassign'}
+                {pending ? 'Working…'
+                  : dialog === 'add' ? 'Add task'
+                  : dialog === 'delete' ? 'Delete task' : 'Reassign'}
               </button>
             </div>
           </div>
