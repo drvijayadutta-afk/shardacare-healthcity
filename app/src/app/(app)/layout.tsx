@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getCurrentUser, canViewAllWork } from '@/lib/auth/roles';
+import { QuickAddWork } from '@/components/QuickAddWork';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
@@ -22,8 +23,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 Control Tower
               </Link>
             )}
+            {showControlTower && (
+              <Link href="/board" className="text-slate-600 hover:text-slate-900">
+                Board
+              </Link>
+            )}
           </nav>
           <div className="ml-auto flex items-center gap-3">
+            {showControlTower && <QuickAddWork />}
             <span className="text-sm text-slate-500">{user.fullName}</span>
             <form action="/auth/signout" method="post">
               <button type="submit" className="text-sm text-slate-500 hover:text-slate-900">
