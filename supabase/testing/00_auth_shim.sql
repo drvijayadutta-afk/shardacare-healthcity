@@ -12,10 +12,21 @@ CREATE SCHEMA IF NOT EXISTS extensions;
 
 CREATE TABLE IF NOT EXISTS auth.users (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email               TEXT UNIQUE,
+  email               TEXT,
+  is_sso_user         BOOLEAN NOT NULL DEFAULT FALSE,
   raw_user_meta_data  JSONB DEFAULT '{}'::jsonb,
   created_at          TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Mirrors Supabase's users_email_partial_key. It is a PARTIAL index, so
+-- `ON CONFLICT (email)` CANNOT target it and fails with 42P10.
+--
+-- The shim previously declared a plain UNIQUE here, which let a seed written
+-- against it pass locally and then fail on the real project. A test harness
+-- that is more permissive than production is worse than no harness: it
+-- converts a build error into a deployment error.
+CREATE UNIQUE INDEX IF NOT EXISTS users_email_partial_key
+  ON auth.users (email) WHERE is_sso_user = FALSE;
 
 -- In Supabase this reads the JWT. Locally we drive it from a session GUC so
 -- tests can impersonate a user: SET LOCAL request.jwt.claim.sub = '<uuid>'

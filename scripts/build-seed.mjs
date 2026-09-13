@@ -300,13 +300,19 @@ BEGIN;
 `);
 
 sql.push(`-- --- People named in the source ------------------------------------------
--- Placeholder auth ids so the seed can run before real sign-ups exist; when
--- these people register, match on email and re-point the FKs.
+-- These are people work is ATTRIBUTED to, not login accounts. Nothing is
+-- written to auth.users: that table belongs to Supabase's auth service, rows
+-- inserted by hand lack the columns GoTrue requires and cannot sign in, and
+-- its email index is PARTIAL so ON CONFLICT (email) fails with 42P10.
+--
+-- When one of these people is given a login, create them through
+-- Authentication -> Users and relink. The @placeholder.invalid addresses
+-- guarantee no collision with a real sign-up in the meantime.
 `);
 for (const p of allPeople) {
   const email = p.toLowerCase().replace(/[^a-z]/g, '.') + '@placeholder.invalid';
-  sql.push(`INSERT INTO auth.users (id, email, raw_user_meta_data)
-VALUES (gen_random_uuid(), ${q(email)}, jsonb_build_object('full_name', ${q(p)}))
+  sql.push(`INSERT INTO public.users (email, full_name)
+VALUES (${q(email)}, ${q(p)})
 ON CONFLICT (email) DO NOTHING;`);
 }
 

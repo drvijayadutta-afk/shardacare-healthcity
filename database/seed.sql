@@ -15,59 +15,65 @@
 BEGIN;
 
 -- --- People named in the source ------------------------------------------
--- Placeholder auth ids so the seed can run before real sign-ups exist; when
--- these people register, match on email and re-point the FKs.
+-- These are people work is ATTRIBUTED to, not login accounts. Nothing is
+-- written to auth.users: that table belongs to Supabase's auth service, rows
+-- inserted by hand lack the columns GoTrue requires and cannot sign in, and
+-- its email index is PARTIAL so ON CONFLICT (email) fails with 42P10.
+--
+-- When one of these people is given a login, create them through
+-- Authentication -> Users and relink. The @placeholder.invalid addresses
+-- guarantee no collision with a real sign-up in the meantime.
 
-INSERT INTO auth.users (id, email, raw_user_meta_data)
-VALUES (gen_random_uuid(), 'akshay@placeholder.invalid', jsonb_build_object('full_name', 'Akshay'))
+INSERT INTO public.users (email, full_name)
+VALUES ('akshay@placeholder.invalid', 'Akshay')
 ON CONFLICT (email) DO NOTHING;
-INSERT INTO auth.users (id, email, raw_user_meta_data)
-VALUES (gen_random_uuid(), 'anshika@placeholder.invalid', jsonb_build_object('full_name', 'Anshika'))
+INSERT INTO public.users (email, full_name)
+VALUES ('anshika@placeholder.invalid', 'Anshika')
 ON CONFLICT (email) DO NOTHING;
-INSERT INTO auth.users (id, email, raw_user_meta_data)
-VALUES (gen_random_uuid(), 'atampreet@placeholder.invalid', jsonb_build_object('full_name', 'Atampreet'))
+INSERT INTO public.users (email, full_name)
+VALUES ('atampreet@placeholder.invalid', 'Atampreet')
 ON CONFLICT (email) DO NOTHING;
-INSERT INTO auth.users (id, email, raw_user_meta_data)
-VALUES (gen_random_uuid(), 'dr..tarang@placeholder.invalid', jsonb_build_object('full_name', 'Dr. Tarang'))
+INSERT INTO public.users (email, full_name)
+VALUES ('dr..tarang@placeholder.invalid', 'Dr. Tarang')
 ON CONFLICT (email) DO NOTHING;
-INSERT INTO auth.users (id, email, raw_user_meta_data)
-VALUES (gen_random_uuid(), 'himanshu@placeholder.invalid', jsonb_build_object('full_name', 'Himanshu'))
+INSERT INTO public.users (email, full_name)
+VALUES ('himanshu@placeholder.invalid', 'Himanshu')
 ON CONFLICT (email) DO NOTHING;
-INSERT INTO auth.users (id, email, raw_user_meta_data)
-VALUES (gen_random_uuid(), 'jaggi@placeholder.invalid', jsonb_build_object('full_name', 'Jaggi'))
+INSERT INTO public.users (email, full_name)
+VALUES ('jaggi@placeholder.invalid', 'Jaggi')
 ON CONFLICT (email) DO NOTHING;
-INSERT INTO auth.users (id, email, raw_user_meta_data)
-VALUES (gen_random_uuid(), 'love@placeholder.invalid', jsonb_build_object('full_name', 'Love'))
+INSERT INTO public.users (email, full_name)
+VALUES ('love@placeholder.invalid', 'Love')
 ON CONFLICT (email) DO NOTHING;
-INSERT INTO auth.users (id, email, raw_user_meta_data)
-VALUES (gen_random_uuid(), 'mudit@placeholder.invalid', jsonb_build_object('full_name', 'Mudit'))
+INSERT INTO public.users (email, full_name)
+VALUES ('mudit@placeholder.invalid', 'Mudit')
 ON CONFLICT (email) DO NOTHING;
-INSERT INTO auth.users (id, email, raw_user_meta_data)
-VALUES (gen_random_uuid(), 'nasir@placeholder.invalid', jsonb_build_object('full_name', 'Nasir'))
+INSERT INTO public.users (email, full_name)
+VALUES ('nasir@placeholder.invalid', 'Nasir')
 ON CONFLICT (email) DO NOTHING;
-INSERT INTO auth.users (id, email, raw_user_meta_data)
-VALUES (gen_random_uuid(), 'nirmal@placeholder.invalid', jsonb_build_object('full_name', 'Nirmal'))
+INSERT INTO public.users (email, full_name)
+VALUES ('nirmal@placeholder.invalid', 'Nirmal')
 ON CONFLICT (email) DO NOTHING;
-INSERT INTO auth.users (id, email, raw_user_meta_data)
-VALUES (gen_random_uuid(), 'nishith@placeholder.invalid', jsonb_build_object('full_name', 'Nishith'))
+INSERT INTO public.users (email, full_name)
+VALUES ('nishith@placeholder.invalid', 'Nishith')
 ON CONFLICT (email) DO NOTHING;
-INSERT INTO auth.users (id, email, raw_user_meta_data)
-VALUES (gen_random_uuid(), 'parul@placeholder.invalid', jsonb_build_object('full_name', 'Parul'))
+INSERT INTO public.users (email, full_name)
+VALUES ('parul@placeholder.invalid', 'Parul')
 ON CONFLICT (email) DO NOTHING;
-INSERT INTO auth.users (id, email, raw_user_meta_data)
-VALUES (gen_random_uuid(), 'shreyak@placeholder.invalid', jsonb_build_object('full_name', 'Shreyak'))
+INSERT INTO public.users (email, full_name)
+VALUES ('shreyak@placeholder.invalid', 'Shreyak')
 ON CONFLICT (email) DO NOTHING;
-INSERT INTO auth.users (id, email, raw_user_meta_data)
-VALUES (gen_random_uuid(), 'sushant@placeholder.invalid', jsonb_build_object('full_name', 'Sushant'))
+INSERT INTO public.users (email, full_name)
+VALUES ('sushant@placeholder.invalid', 'Sushant')
 ON CONFLICT (email) DO NOTHING;
-INSERT INTO auth.users (id, email, raw_user_meta_data)
-VALUES (gen_random_uuid(), 'vidisha@placeholder.invalid', jsonb_build_object('full_name', 'Vidisha'))
+INSERT INTO public.users (email, full_name)
+VALUES ('vidisha@placeholder.invalid', 'Vidisha')
 ON CONFLICT (email) DO NOTHING;
-INSERT INTO auth.users (id, email, raw_user_meta_data)
-VALUES (gen_random_uuid(), 'vijaya@placeholder.invalid', jsonb_build_object('full_name', 'Vijaya'))
+INSERT INTO public.users (email, full_name)
+VALUES ('vijaya@placeholder.invalid', 'Vijaya')
 ON CONFLICT (email) DO NOTHING;
-INSERT INTO auth.users (id, email, raw_user_meta_data)
-VALUES (gen_random_uuid(), 'vivek@placeholder.invalid', jsonb_build_object('full_name', 'Vivek'))
+INSERT INTO public.users (email, full_name)
+VALUES ('vivek@placeholder.invalid', 'Vivek')
 ON CONFLICT (email) DO NOTHING;
 
 -- --- Role assignments ------------------------------------------------------

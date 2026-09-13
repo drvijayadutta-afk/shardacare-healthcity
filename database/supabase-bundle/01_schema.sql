@@ -19,13 +19,23 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 
 -- ----------------------------------------------------------------------------
--- users — profile extension of auth.users (1:1)
+-- users — a PERSON, who may or may not have a login
 -- ----------------------------------------------------------------------------
--- id has NO default: it is always auth.users.id, supplied by the trigger below
--- or by a seed insert. (A `DEFAULT auth.uid()` would resolve to NULL for
--- service-role and SQL-editor inserts and violate the PK.)
+-- There is deliberately NO foreign key to auth.users.
+--
+-- Most people named in the source job list will never sign in: they are who
+-- work is attributed to, not accounts. Requiring an auth row for each of them
+-- would mean fabricating login accounts, and auth.users is owned by Supabase's
+-- auth service -- rows inserted into it by hand lack the columns GoTrue needs
+-- and cannot authenticate.
+--
+-- For someone who DOES sign in, handle_new_auth_user() below creates their row
+-- with id = auth.users.id, so `auth.uid() = users.id` still holds throughout
+-- the row-level security policies. A person imported first and given a login
+-- later is relinked by an admin; their placeholder email
+-- (@placeholder.invalid) guarantees no collision in the meantime.
 CREATE TABLE IF NOT EXISTS public.users (
-  id           UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email        TEXT NOT NULL UNIQUE,
   full_name    TEXT NOT NULL,
   avatar_url   TEXT,

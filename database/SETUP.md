@@ -30,9 +30,22 @@ confirming up front:
   seeded as `CREATOR`. That exists only so RLS can be tested; reassign properly
   before real use.
 
-The 17 people are created with `@placeholder.invalid` email addresses because
-the document gives no contact details. When the real person signs up, match on
-name and re-point the foreign keys — do not create a second row.
+The 17 people are created as rows in `public.users` with `@placeholder.invalid`
+addresses, because the document gives no contact details. **They are not login
+accounts.** Nothing is written to `auth.users`: that table belongs to Supabase's
+auth service, and rows inserted into it by hand lack the columns GoTrue needs,
+so they cannot sign in.
+
+To give one of them a login later, create the account under Authentication →
+Users, then relink the existing row rather than letting a second one be created:
+
+```sql
+UPDATE public.users SET id = '<the new auth user id>'
+WHERE lower(email) = lower('<their placeholder or real email>');
+```
+
+`03_first_user.sql` refuses to run rather than creating a duplicate identity if
+it finds a person row with the same email under a different id.
 
 ## 3. Create your login — `database/supabase-bundle/03_first_user.sql`
 

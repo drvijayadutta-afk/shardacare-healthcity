@@ -35,6 +35,18 @@ BEGIN
   -- created AFTER 01_schema.sql ran. Anyone added before that has an auth
   -- account with no profile, which makes the app sign you in and then fail to
   -- find you. This covers that case; it is a no-op in the normal order.
+  --
+  -- A person imported from the job list already has a users row keyed by a
+  -- random id, not by their auth id. Relinking that row means repointing every
+  -- FK that references it, so this refuses rather than creating a second
+  -- identity for the same person -- two rows, work split silently between them.
+  IF EXISTS (SELECT 1 FROM public.users WHERE lower(email) = lower(v_email)
+               AND id <> v_user_id) THEN
+    RAISE EXCEPTION
+      'A person row already exists for "%" with a different id. It was probably imported from the job list. Relink it instead: UPDATE public.users SET id = ''%'' WHERE lower(email) = lower(''%''); -- then re-run this script.',
+      v_email, v_user_id, v_email;
+  END IF;
+
   INSERT INTO public.users (id, email, full_name)
   VALUES (v_user_id, v_email, v_full_name)
   ON CONFLICT (id) DO NOTHING;
