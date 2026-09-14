@@ -315,7 +315,34 @@ DECLARE
   v_designer UUID := (SELECT v FROM _t WHERE k='designer');
   v_blocked BOOLEAN := FALSE;
 BEGIN
+  -- Since 0013, holding work is reserved to the status controllers. A designer
+  -- must be refused; the hold itself is then done by someone who may.
   PERFORM set_config('request.jwt.claim.sub', v_designer::TEXT, TRUE);
+  DECLARE v_refused BOOLEAN := FALSE;
+  BEGIN
+    BEGIN
+      PERFORM public.put_on_hold(v_work, 'Waiting on client copy', 'info_needed');
+    EXCEPTION WHEN insufficient_privilege THEN
+      v_refused := TRUE;
+    END;
+    IF NOT v_refused THEN
+      RAISE EXCEPTION 'T6 FAIL: a designer was allowed to put work on hold';
+    END IF;
+  END;
+
+  -- A real controller, created the way 0013 expects them to exist: by holding
+  -- STATUS_CONTROLLER, not by being named in code.
+  DECLARE v_controller UUID;
+  BEGIN
+    INSERT INTO auth.users (email, raw_user_meta_data)
+      VALUES ('controller@example.test','{"full_name":"Controller"}')
+      RETURNING id INTO v_controller;
+    INSERT INTO public.user_roles (user_id, role_id)
+      SELECT v_controller, id FROM public.roles WHERE name='STATUS_CONTROLLER'
+      ON CONFLICT DO NOTHING;
+    PERFORM set_config('request.jwt.claim.sub', v_controller::TEXT, TRUE);
+  END;
+
   PERFORM public.put_on_hold(v_work, 'Waiting on client copy', 'info_needed');
 
   IF (SELECT status FROM public.work_items WHERE id=v_work) <> 'ON_HOLD' THEN
@@ -340,7 +367,7 @@ BEGIN
     RAISE EXCEPTION 'T6 FAIL: resume did not clear hold';
   END IF;
 
-  RAISE NOTICE 'T6 PASS  hold blocks submit, stage preserved, resume works';
+  RAISE NOTICE 'T6 PASS  hold reserved to controllers, blocks submit, resume works';
 END
 $test6$;
 

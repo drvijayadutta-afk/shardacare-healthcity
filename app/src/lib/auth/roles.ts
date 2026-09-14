@@ -2,8 +2,13 @@ import { createClient } from '@/lib/supabase/server';
 import { cache } from 'react';
 
 export type RoleName =
+  // The generic set from 0001
   | 'ADMIN' | 'WORKFLOW_MANAGER' | 'APPROVER'
-  | 'CREATOR' | 'COORDINATOR' | 'REQUESTOR' | 'VENDOR';
+  | 'CREATOR' | 'COORDINATOR' | 'REQUESTOR' | 'VENDOR'
+  // The team's actual disciplines, added in 0011
+  | 'CONTENT_WRITER' | 'DESIGNER' | 'SOCIAL_MEDIA' | 'MANAGER' | 'FINAL_APPROVER'
+  // Who may move work between stages, added in 0015
+  | 'STATUS_CONTROLLER';
 
 export interface CurrentUser {
   id: string;

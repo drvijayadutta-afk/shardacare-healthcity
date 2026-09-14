@@ -50,3 +50,50 @@ BEGIN
 END $$;
 
 GRANT USAGE ON SCHEMA public, auth, extensions TO authenticated, anon, service_role;
+
+-- ============================================================================
+-- Minimal Storage stand-in.
+--
+-- Supabase Storage provides storage.buckets, storage.objects and
+-- storage.foldername() automatically. This reproduces only the columns and
+-- function 0015_attachments_tags_status_control.sql's bucket insert and
+-- policies actually touch — enough to prove the RLS is correct, not a general
+-- Storage emulator.
+-- ============================================================================
+CREATE SCHEMA IF NOT EXISTS storage;
+
+CREATE TABLE IF NOT EXISTS storage.buckets (
+  id                 TEXT PRIMARY KEY,
+  name               TEXT NOT NULL,
+  owner              UUID,
+  public             BOOLEAN DEFAULT FALSE,
+  file_size_limit    BIGINT,
+  allowed_mime_types TEXT[],
+  created_at         TIMESTAMPTZ DEFAULT NOW(),
+  updated_at         TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS storage.objects (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  bucket_id  TEXT REFERENCES storage.buckets(id),
+  name       TEXT,
+  owner      UUID,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  metadata   JSONB
+);
+
+ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+
+-- Real Supabase splits the object path on '/' and returns every segment
+-- except the last (the filename). Object names here are laid out as
+-- '<work_item_id>/<uuid>-<filename>', so [1] is the work item id.
+CREATE OR REPLACE FUNCTION storage.foldername(name TEXT)
+RETURNS TEXT[] LANGUAGE sql IMMUTABLE AS $$
+  SELECT (regexp_split_to_array(name, '/'))[1 : array_length(regexp_split_to_array(name, '/'), 1) - 1];
+$$;
+
+GRANT USAGE ON SCHEMA storage TO authenticated, anon, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON storage.objects TO authenticated, service_role;
+GRANT SELECT ON storage.buckets TO authenticated, anon, service_role;
+GRANT ALL ON storage.buckets TO service_role;

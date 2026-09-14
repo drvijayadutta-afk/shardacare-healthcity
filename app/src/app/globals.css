@@ -1,6 +1,26 @@
 @import "tailwindcss";
 
+/*
+ * This is a light interface, deliberately.
+ *
+ * It previously carried the Next.js starter's `prefers-color-scheme: dark`
+ * block, which flipped --foreground to near-white. Every surface in the app is
+ * painted light explicitly (bg-white, border-slate-200, text-black), so on
+ * a phone or laptop set to dark mode nothing went dark EXCEPT the inherited
+ * text colour — and Tailwind's preflight gives form controls `color: inherit`.
+ *
+ * The result: white text in a white comment box. You could type, and see
+ * nothing. The same applied to every input in the app — the tag field, the
+ * login form, the new-work form, the PO vendor and amount fields — it was just
+ * most obvious where people type the most.
+ *
+ * The fix is to stop pretending there is a dark theme. `color-scheme: light`
+ * also stops browsers auto-darkening native controls (date pickers, scroll
+ * bars, autofill) against these light panels.
+ */
 :root {
+  color-scheme: light;
+
   --background: #ffffff;
   --foreground: #000000;
 }
@@ -12,12 +32,43 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* No dark-mode variant: every screen is built as a light UI with explicit
-   Tailwind slate/white backgrounds, so flipping the body's own background and
-   text color on prefers-color-scheme would fight those, not complement them. */
-
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/*
+ * Belt and braces: state the colour on the controls themselves rather than
+ * relying on inheritance, so a future change to body colour cannot make text
+ * invisible again. Anything that renders a typed value is covered.
+ */
+input,
+textarea,
+select {
+  color: #000000;
+  background-color: #ffffff;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #94a3b8;          /* slate-400 — legible, clearly not real input */
+  opacity: 1;              /* Firefox dims placeholders by default */
+}
+
+/* Chrome paints autofilled fields with its own pale-yellow background and can
+   leave the text unreadable against it. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #000000;
+  box-shadow: 0 0 0 1000px #ffffff inset;
+}
+
+input:disabled,
+textarea:disabled,
+select:disabled {
+  color: #64748b;          /* slate-500 — a disabled field reads as inactive, not just black-on-grey */
+  background-color: #f8fafc;
 }

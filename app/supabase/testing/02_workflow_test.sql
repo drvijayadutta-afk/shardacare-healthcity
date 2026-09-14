@@ -71,6 +71,18 @@ BEGIN
     EXIT WHEN v_stage IS NULL;
     v_path := v_path || v_stage || ' > ';
     EXIT WHEN v_stage = 'COMPLETED';
+    -- Since 0014 the PO runs beside the work rather than in front of it, and
+    -- release is the one thing that still waits for it. The gate blocks the
+    -- move INTO release, so procurement has to be cleared while the item is
+    -- still upstream — which is exactly the parallelism being tested.
+    IF (SELECT po_request_id FROM public.work_items WHERE id=v_work) IS NOT NULL
+       AND (SELECT po_status FROM public.work_items WHERE id=v_work)
+           NOT IN ('RELEASED','NOT_REQUIRED') THEN
+      PERFORM set_config('request.jwt.claim.sub', NULL, TRUE);
+      PERFORM public.advance_po_track(v_work, 'IN_REVIEW');
+      PERFORM public.advance_po_track(v_work, 'APPROVED');
+      PERFORM public.advance_po_track(v_work, 'RELEASED');
+    END IF;
 
     -- Act as whoever currently holds it
     PERFORM set_config('request.jwt.claim.sub',
@@ -127,6 +139,18 @@ BEGIN
     EXIT WHEN v_stage IS NULL;
     v_path := v_path || v_stage || ' > ';
     EXIT WHEN v_stage = 'COMPLETED';
+    -- Since 0014 the PO runs beside the work rather than in front of it, and
+    -- release is the one thing that still waits for it. The gate blocks the
+    -- move INTO release, so procurement has to be cleared while the item is
+    -- still upstream — which is exactly the parallelism being tested.
+    IF (SELECT po_request_id FROM public.work_items WHERE id=v_work) IS NOT NULL
+       AND (SELECT po_status FROM public.work_items WHERE id=v_work)
+           NOT IN ('RELEASED','NOT_REQUIRED') THEN
+      PERFORM set_config('request.jwt.claim.sub', NULL, TRUE);
+      PERFORM public.advance_po_track(v_work, 'IN_REVIEW');
+      PERFORM public.advance_po_track(v_work, 'APPROVED');
+      PERFORM public.advance_po_track(v_work, 'RELEASED');
+    END IF;
     PERFORM set_config('request.jwt.claim.sub',
       (SELECT COALESCE(current_assignee_id, owner_id)::TEXT FROM public.work_items WHERE id=v_work), TRUE);
     IF (SELECT approval_required FROM public.work_items WHERE id=v_work) THEN
@@ -138,8 +162,17 @@ BEGIN
 
   RAISE NOTICE 'PO path:    %', rtrim(v_path,' > ');
 
-  IF v_path NOT LIKE '%PO_REQUEST > PROCUREMENT_REVIEW > PO_APPROVAL > PO_RELEASED > PRODUCTION%' THEN
-    RAISE EXCEPTION 'FAIL: procurement detour wrong: %', v_path;
+  -- 0014 replaced the procurement DETOUR with a parallel TRACK. The assertion
+  -- is inverted on purpose: seeing the PO stages on the main path again would
+  -- mean the critical path had silently regrown four waiting steps.
+  IF v_path LIKE '%PO_REQUEST%' THEN
+    RAISE EXCEPTION 'FAIL: procurement is back on the critical path: %', v_path;
+  END IF;
+  IF v_path NOT LIKE '%DEPARTMENT_APPROVAL > PRODUCTION%' THEN
+    RAISE EXCEPTION 'FAIL: approved PO work did not go straight to production: %', v_path;
+  END IF;
+  IF (SELECT po_status FROM public.work_items WHERE id=v_work) <> 'RELEASED' THEN
+    RAISE EXCEPTION 'FAIL: PO track did not run alongside to release';
   END IF;
   IF (SELECT status FROM public.work_items WHERE id=v_work) <> 'COMPLETED' THEN
     RAISE EXCEPTION 'FAIL: PO path did not complete';

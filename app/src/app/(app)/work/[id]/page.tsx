@@ -1,15 +1,25 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { getCurrentUser, hasRole } from '@/lib/auth/roles';
+import { getCurrentUser, hasPermission, hasRole } from '@/lib/auth/roles';
 import { StatusBadge, PriorityBadge, OverdueBadge, StageBadge } from '@/components/Badges';
 import { WorkActions } from '@/components/WorkActions';
 import { AdminControls } from '@/components/AdminControls';
-import { WorkflowStepper } from '@/components/WorkflowStepper';
-import { CommentForm } from '@/components/CommentForm';
+import { JourneyPills, type JourneyStage } from '@/components/JourneyPills';
+import { CommentThread, type CommentRow } from '@/components/CommentThread';
+import { FileUpload } from '@/components/FileUpload';
+import { FileList, type AttachedFile } from '@/components/FileList';
+import { TagEditor, type WorkTag } from '@/components/TagEditor';
+import { PoTrack, type PoStep, type PoDetails } from '@/components/PoTrack';
 import { formatDate, formatDaysRemaining, humanise, DASH } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
+
+/** Supabase returns an embedded one-to-one as an object; the generated type says array. */
+function nameOf(rel: unknown): string | null {
+  const r = rel as { full_name?: string } | null;
+  return r?.full_name ?? null;
+}
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -46,31 +56,41 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
   // empty result means "not found or not yours" — both are a 404 to the user.
   if (!work) notFound();
 
-  const [stages, files, comments, activity, myTask, owners] = await Promise.all([
-    supabase.from('workflow_stages')
-      .select('id, name, stage_order, requires_approval')
-      .eq('workflow_id', work.workflow_id).order('stage_order'),
-    supabase.from('files')
-      .select('id, file_name, file_type, size_bytes, uploaded_at, users:uploaded_by(full_name)')
-      .eq('work_item_id', id).is('deleted_at', null).order('uploaded_at', { ascending: false }),
-    supabase.from('comments')
-      .select('id, body, comment_type, created_at, users:author_id(full_name)')
-      .eq('work_item_id', id).is('deleted_at', null).order('created_at', { ascending: false }),
-    // Rows written inside one handoff share a timestamp, so id is the
-    // tiebreaker — without it the history reshuffles between page loads.
-    supabase.from('activity_log')
-      .select('id, action, from_value, to_value, occurred_at, users:actor_id(full_name)')
-      .eq('work_item_id', id)
-      .order('occurred_at', { ascending: false }).order('id', { ascending: false }).limit(50),
-    supabase.from('tasks')
-      .select('id, action_type').eq('work_item_id', id)
-      .eq('assignee_id', user?.id ?? '').is('closed_at', null).maybeSingle(),
-    supabase.from('work_item_owners')
-      .select('owner_role, users:user_id(full_name)').eq('work_item_id', id),
-  ]);
+  const [journey, files, comments, activity, myTask, owners, tags, poSteps, po] =
+    await Promise.all([
+      supabase.from('v_work_item_journey')
+        .select('stage_id, stage_name, stage_order, track, requires_approval, is_terminal, state, person_name, person_id, role_name, acted_at')
+        .eq('work_item_id', id).order('stage_order'),
+      supabase.from('files')
+        .select('id, file_name, mime_type, size_bytes, uploaded_at, uploaded_by, users:uploaded_by(full_name)')
+        .eq('work_item_id', id).is('deleted_at', null).order('uploaded_at', { ascending: false }),
+      supabase.from('comments')
+        .select('id, body, comment_type, created_at, parent_id, is_resolved, deleted_at, author_id, users:author_id(full_name)')
+        .eq('work_item_id', id).order('created_at', { ascending: false }),
+      // Rows written inside one handoff share a timestamp, so id is the
+      // tiebreaker — without it the history reshuffles between page loads.
+      supabase.from('activity_log')
+        .select('id, action, from_value, to_value, occurred_at, users:actor_id(full_name)')
+        .eq('work_item_id', id)
+        .order('occurred_at', { ascending: false }).order('id', { ascending: false }).limit(50),
+      supabase.from('tasks')
+        .select('id, action_type').eq('work_item_id', id)
+        .eq('assignee_id', user?.id ?? '').is('closed_at', null).maybeSingle(),
+      supabase.from('work_item_owners')
+        .select('owner_role, users:user_id(full_name)').eq('work_item_id', id),
+      supabase.from('v_work_item_tags')
+        .select('tag_id, slug, label, colour').eq('work_item_id', id),
+      supabase.from('v_po_track')
+        .select('step_order, code, label, state').eq('work_item_id', id).order('step_order'),
+      work.po_request_id
+        ? supabase.from('po_requests')
+            .select('id, po_number, vendor_name, amount, currency, description, status')
+            .eq('id', work.po_request_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
 
-  // What this viewer may do. Presentation only — submit_for_next_stage re-checks
-  // and RLS enforces, so hiding a button is a convenience, not the boundary.
+  // What this viewer may do. Presentation only — the database re-checks on
+  // every write, so hiding a button is a convenience, not the boundary.
   const holdsIt =
     !!myTask.data ||
     work.current_assignee_id === user?.id ||
@@ -78,12 +98,20 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
   const isFinished = ['COMPLETED', 'CANCELLED', 'REJECTED'].includes(work.status);
   const isOnHold = work.status === 'ON_HOLD';
 
-  const canApprove = holdsIt && work.stage_requires_approval && !isFinished && !isOnHold;
-  const canSubmit  = holdsIt && !isFinished && !isOnHold;
-  const canHold    = holdsIt && !isFinished;
+  // Moving work between stages is reserved (migration 0015). Everyone else can
+  // still attach, tag and comment — which is most of what a day involves.
+  const canChangeStatus = hasPermission(user, 'change_status');
+  const canModerate = hasRole(user, 'ADMIN', 'WORKFLOW_MANAGER', 'MANAGER');
 
-  // Same role check as reassign_work_item / remove_task themselves — this
-  // only decides whether the panel renders, not whether the action succeeds.
+  const canApprove = canChangeStatus && holdsIt && work.stage_requires_approval && !isFinished && !isOnHold;
+  const canSubmit  = canChangeStatus && holdsIt && !isFinished && !isOnHold;
+  const canHold    = canChangeStatus && holdsIt && !isFinished;
+
+  // Admin override — distinct from canChangeStatus above. That gates the
+  // normal submit/approve/hold flow for whoever holds the work; this is
+  // ADMIN/WORKFLOW_MANAGER's ability to move it off someone else entirely.
+  // Same role check as reassign_work_item / remove_task / add_task_to_work_item
+  // themselves (0013) — this only decides whether the panel renders.
   const canManage = hasRole(user, 'ADMIN', 'WORKFLOW_MANAGER') && !isFinished && !isOnHold;
   const canDelete = hasRole(user, 'ADMIN');
 
@@ -104,6 +132,30 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
     currentAssigneeNameForTask =
       (taskRes.data?.users as unknown as { full_name: string } | null)?.full_name ?? null;
   }
+
+  const fileRows: AttachedFile[] = (files.data ?? []).map((f) => ({
+    id: f.id,
+    file_name: f.file_name,
+    mime_type: f.mime_type,
+    size_bytes: f.size_bytes,
+    uploaded_at: f.uploaded_at,
+    uploader: nameOf(f.users),
+    is_mine: f.uploaded_by === user?.id,
+  }));
+
+  const commentRows: CommentRow[] = (comments.data ?? []).map((c) => ({
+    id: c.id,
+    body: c.body,
+    comment_type: c.comment_type,
+    created_at: c.created_at,
+    parent_id: c.parent_id,
+    is_resolved: c.is_resolved,
+    deleted_at: c.deleted_at,
+    author: nameOf(c.users),
+    is_mine: c.author_id === user?.id,
+  }));
+
+  const openComments = commentRows.filter((c) => !c.parent_id && !c.is_resolved && !c.deleted_at).length;
 
   return (
     <div className="space-y-5">
@@ -174,8 +226,7 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
           </Field>
           <Field label="Collaborators">
             {owners.data?.length
-              ? owners.data.map((o) =>
-                  (o.users as unknown as { full_name: string } | null)?.full_name).filter(Boolean).join(', ')
+              ? owners.data.map((o) => nameOf(o.users)).filter(Boolean).join(', ')
               : DASH}
           </Field>
         </dl>
@@ -186,27 +237,50 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
         )}
       </Section>
 
-      <Section title="Workflow progress">
-        <div className="mt-3">
-          <WorkflowStepper
-            stages={stages.data ?? []}
-            currentOrder={work.stage_order}
-            poRequired={work.po_required}
-          />
-        </div>
+      <Section title="Tags" count={tags.data?.length ?? 0}>
+        <TagEditor
+          workItemId={id}
+          tags={(tags.data ?? []) as WorkTag[]}
+          canEdit={!isFinished}
+        />
       </Section>
 
-      <Section title="Actions">
-        <div className="mt-3">
-          <WorkActions
-            workItemId={id}
-            canSubmit={canSubmit}
-            canApprove={canApprove}
-            canHold={canHold}
-            isOnHold={isOnHold}
-          />
-        </div>
+      <Section title="Journey">
+        <JourneyPills stages={(journey.data ?? []) as JourneyStage[]} />
       </Section>
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Section title="Purchase order">
+          <PoTrack
+            workItemId={id}
+            poRequired={work.po_required}
+            poStatus={work.po_status}
+            steps={(poSteps.data ?? []) as PoStep[]}
+            po={(po.data ?? null) as PoDetails | null}
+            canChangeStatus={canChangeStatus}
+            blocksRelease={work.po_required}
+          />
+        </Section>
+
+        <Section title="Actions">
+          <div className="mt-3">
+            {canChangeStatus ? (
+              <WorkActions
+                workItemId={id}
+                canSubmit={canSubmit}
+                canApprove={canApprove}
+                canHold={canHold}
+                isOnHold={isOnHold}
+              />
+            ) : (
+              <p className="text-sm text-black">
+                Only Vijaya and Nirmal can move work between stages. You can attach
+                files, add tags and comment here.
+              </p>
+            )}
+          </div>
+        </Section>
+      </div>
 
       {canManage && (
         <Section title="Admin controls">
@@ -223,49 +297,17 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
       )}
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <Section title="Files" count={files.data?.length ?? 0}>
-          {files.data?.length ? (
-            <ul className="mt-3 divide-y divide-slate-100">
-              {files.data.map((f) => (
-                <li key={f.id} className="flex items-baseline justify-between gap-3 py-2 text-sm">
-                  <span className="text-black">{f.file_name}</span>
-                  <span className="whitespace-nowrap text-xs text-black">
-                    {(f.users as unknown as { full_name: string } | null)?.full_name ?? DASH}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-3 text-sm text-black">No files attached.</p>
-          )}
+        <Section title="Files" count={fileRows.length}>
+          <FileList workItemId={id} files={fileRows} canRemoveAny={canModerate} />
+          {!isFinished && <FileUpload workItemId={id} />}
         </Section>
 
-        <Section title="Comments" count={comments.data?.length ?? 0}>
-          {comments.data?.length ? (
-            <ul className="mt-3 space-y-3">
-              {comments.data.map((c) => (
-                <li key={c.id} className="text-sm">
-                  <div className="flex flex-wrap items-baseline gap-2">
-                    <span className="font-medium text-black">
-                      {(c.users as unknown as { full_name: string } | null)?.full_name ?? 'Unknown'}
-                    </span>
-                    {c.comment_type !== 'COMMENT' && (
-                      <span className="rounded bg-orange-50 px-1.5 py-0.5 text-xs text-orange-800">
-                        {humanise(c.comment_type)}
-                      </span>
-                    )}
-                    <span className="text-xs text-black">
-                      {new Date(c.created_at).toLocaleString('en-GB')}
-                    </span>
-                  </div>
-                  <p className="mt-0.5 whitespace-pre-wrap text-black">{c.body}</p>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-3 text-sm text-black">No comments yet.</p>
-          )}
-          <CommentForm workItemId={id} />
+        <Section title="Comments" count={openComments}>
+          <CommentThread
+            workItemId={id}
+            comments={commentRows}
+            canModerate={canModerate}
+          />
         </Section>
       </div>
 
@@ -284,7 +326,7 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
                   <span className="text-black">{humanise(a.to_value)}</span>
                 )}
                 <span className="text-black">
-                  by {(a.users as unknown as { full_name: string } | null)?.full_name ?? 'system'}
+                  by {nameOf(a.users) ?? 'system'}
                 </span>
                 <span className="ml-auto whitespace-nowrap text-xs text-black">
                   {new Date(a.occurred_at).toLocaleString('en-GB')}
