@@ -35,6 +35,17 @@ ON CONFLICT (name) DO UPDATE
 -- ----------------------------------------------------------------------------
 -- Stages
 -- ----------------------------------------------------------------------------
+-- Shifted out of the way first so the fixed-position upsert below can never
+-- collide with a stage a LATER migration inserted at one of these same
+-- numbers -- CONCEPT, added in 0017_creative_chain.sql, sits at stage_order 2.
+-- Without this, a second run of the full bundle resets every known stage back
+-- to this migration's own numbering (which does not know CONCEPT exists) and
+-- collides with that leftover row before 0017 gets a chance to run again and
+-- fix it. Mirrors the same shift-then-set idiom 0017 uses for its own insert.
+UPDATE public.workflow_stages
+   SET stage_order = stage_order + 1000
+ WHERE workflow_id = (SELECT id FROM public.workflow_templates WHERE name = 'Sharda Marketing Workflow');
+
 INSERT INTO public.workflow_stages
   (workflow_id, name, stage_order, description,
    requires_approval, requires_attachment, expected_role_id, approval_category, is_terminal)

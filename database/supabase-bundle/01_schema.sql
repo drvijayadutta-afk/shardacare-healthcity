@@ -2583,6 +2583,17 @@ ON CONFLICT (name) DO UPDATE
 -- ----------------------------------------------------------------------------
 -- Stages
 -- ----------------------------------------------------------------------------
+-- Shifted out of the way first so the fixed-position upsert below can never
+-- collide with a stage a LATER migration inserted at one of these same
+-- numbers -- CONCEPT, added in 0017_creative_chain.sql, sits at stage_order 2.
+-- Without this, a second run of the full bundle resets every known stage back
+-- to this migration's own numbering (which does not know CONCEPT exists) and
+-- collides with that leftover row before 0017 gets a chance to run again and
+-- fix it. Mirrors the same shift-then-set idiom 0017 uses for its own insert.
+UPDATE public.workflow_stages
+   SET stage_order = stage_order + 1000
+ WHERE workflow_id = (SELECT id FROM public.workflow_templates WHERE name = 'Sharda Marketing Workflow');
+
 INSERT INTO public.workflow_stages
   (workflow_id, name, stage_order, description,
    requires_approval, requires_attachment, expected_role_id, approval_category, is_terminal)
@@ -3042,3 +3053,1436 @@ SET po_status = 'NOT_ASSESSED'
 WHERE source_ref IS NOT NULL
   AND po_required = FALSE
   AND po_status = 'NOT_REQUIRED';
+
+-- ####### 0015_attachments_tags_status_control.sql #######
+
+-- ============================================================================
+-- 0015_attachments_tags_status_control.sql
+--   1. Real file attachments (Supabase Storage bucket + policies)
+--   2. Free-form tags
+--   3. Status changes restricted to named people
+--   4. Comment threads: replies, resolve, soft delete
+-- ============================================================================
+-- Idempotent, like every migration before it. Safe to run twice.
+--
+-- Stated by the team lead:
+--   "each person will get their credential, however only Vijaya and Nirmal
+--    can change the status"
+--
+-- Implemented as a PERMISSION, not a pair of hardcoded names, so adding a
+-- third person later is an INSERT rather than a deploy. See the
+-- STATUS_CONTROLLER role and public.can_change_status() below.
+--
+-- ONE JUDGEMENT CALL, flagged rather than hidden:
+--
+-- Read absolutely literally, "only Vijaya and Nirmal can change the status"
+-- also stops a designer handing a finished design to Vijaya — because that
+-- moves the work to the next stage. The creative chain the same person
+-- described ("designer designs it, then Vijaya proofreads it") then cannot
+-- run: every one of the ~38 daily handoffs would need Vijaya or Nirmal to
+-- press the button on someone else's behalf, and they become the bottleneck
+-- for work they have not looked at yet.
+--
+-- The same tension appears again one step further on: the chain also says
+-- "Nirmal/Sushant verifies, then Parul verifies". Under the literal reading
+-- Sushant and Parul could not approve either, which deletes two of the three
+-- verification steps.
+--
+-- So the line is drawn between DOING, JUDGING and CONTROLLING:
+--   anyone            — submit my own finished work to the next person
+--   the gate's approver — approve, reject or send back AT THEIR OWN GATE
+--                         (Vijaya proofread, Sushant/Nirmal, Parul final),
+--                         resolved from approval_authorities, not from names
+--   V and N only      — hold, resume, cancel, mark complete, move work
+--                       backwards outside a verdict, or move work that is
+--                       neither theirs nor at their gate
+--
+-- To enforce the strictest reading instead, so that literally no stage moves
+-- without them, one statement does it:
+--
+--   UPDATE public.roles SET permissions = permissions::jsonb - 'submit_work'
+--   WHERE name IN ('CONTENT_WRITER','DESIGNER','SOCIAL_MEDIA','CREATOR');
+--
+-- and change the last ELSIF below to drop its can_edit_work_item() exception.
+-- ============================================================================
+
+
+-- ============================================================================
+-- 1. ATTACHMENTS — storage bucket
+-- ============================================================================
+-- The `files` table already existed (migration 0004) but nothing ever wrote to
+-- it: there was no bucket, so `storage_path` pointed at nowhere. This creates
+-- the bucket the column was always describing.
+--
+-- Private bucket. Nothing is served by public URL; the app mints short-lived
+-- signed URLs per download, so a leaked link expires instead of exposing the
+-- whole bucket forever.
+-- ----------------------------------------------------------------------------
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'work-files',
+  'work-files',
+  FALSE,
+  26214400,  -- 25 MB. Raise here, and in MAX_FILE_BYTES in src/lib/files.ts.
+  ARRAY[
+    'application/pdf',
+    'image/jpeg','image/png','image/gif','image/webp','image/svg+xml','image/heic',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'text/plain','text/csv',
+    'application/zip','application/x-zip-compressed',
+    'video/mp4','video/quicktime'
+  ]
+)
+ON CONFLICT (id) DO UPDATE
+  SET file_size_limit    = EXCLUDED.file_size_limit,
+      allowed_mime_types = EXCLUDED.allowed_mime_types,
+      public             = FALSE;
+
+
+-- ----------------------------------------------------------------------------
+-- Storage policies
+--
+-- Object names are laid out as `<work_item_id>/<uuid>-<filename>`, so the first
+-- path segment identifies the work item. can_see_work_item() then answers the
+-- only question that matters: may this person see that item at all? Permission
+-- on the file is therefore never stored twice — it is always derived from the
+-- work item, and cannot drift out of step with it.
+-- ----------------------------------------------------------------------------
+DROP POLICY IF EXISTS work_files_select ON storage.objects;
+CREATE POLICY work_files_select ON storage.objects FOR SELECT TO authenticated
+  USING (
+    bucket_id = 'work-files'
+    AND public.can_see_work_item(
+      NULLIF((storage.foldername(name))[1], '')::UUID
+    )
+  );
+
+DROP POLICY IF EXISTS work_files_insert ON storage.objects;
+CREATE POLICY work_files_insert ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (
+    bucket_id = 'work-files'
+    AND public.can_see_work_item(
+      NULLIF((storage.foldername(name))[1], '')::UUID
+    )
+  );
+
+-- Deliberately narrower than insert: anyone who can see the item may attach a
+-- file, but only the uploader or a manager may remove one. Someone else's
+-- evidence is not yours to delete.
+DROP POLICY IF EXISTS work_files_delete ON storage.objects;
+CREATE POLICY work_files_delete ON storage.objects FOR DELETE TO authenticated
+  USING (
+    bucket_id = 'work-files'
+    AND (
+      owner = auth.uid()
+      OR public.has_role(ARRAY['ADMIN','WORKFLOW_MANAGER','MANAGER'])
+    )
+  );
+
+
+-- ----------------------------------------------------------------------------
+-- files: allow soft delete by uploader or manager, and hard delete by admin.
+-- The 0006 update policy already covers the soft-delete path; this adds the
+-- managers introduced in 0011, who were not a role when 0006 was written.
+-- ----------------------------------------------------------------------------
+DROP POLICY IF EXISTS files_update ON public.files;
+CREATE POLICY files_update ON public.files FOR UPDATE TO authenticated
+  USING (uploaded_by = auth.uid()
+         OR public.has_role(ARRAY['ADMIN','WORKFLOW_MANAGER','MANAGER']))
+  WITH CHECK (uploaded_by = auth.uid()
+         OR public.has_role(ARRAY['ADMIN','WORKFLOW_MANAGER','MANAGER']));
+
+-- An uploaded_by default means the column cannot be spoofed from the client.
+ALTER TABLE public.files
+  ALTER COLUMN uploaded_by SET DEFAULT auth.uid();
+
+CREATE INDEX IF NOT EXISTS idx_files_storage_path ON public.files(storage_path);
+
+
+-- ============================================================================
+-- 2. TAGS — free-form, created on the fly
+-- ============================================================================
+-- Free-form was chosen over a fixed vocabulary, so the guard against
+-- "Hoarding" / "hoardings" / "HOARDING" becoming three tags is a normalised
+-- unique key rather than an admin. `slug` is the identity; `label` is whatever
+-- the first person typed, and is what gets displayed.
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.tags (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug       TEXT NOT NULL UNIQUE,
+  label      TEXT NOT NULL,
+  colour     TEXT NOT NULL DEFAULT 'slate',
+  created_by UUID REFERENCES public.users(id) DEFAULT auth.uid(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  CONSTRAINT chk_tag_label_len CHECK (char_length(label) BETWEEN 1 AND 40),
+  CONSTRAINT chk_tag_slug_shape CHECK (slug ~ '^[a-z0-9][a-z0-9 -]*$')
+);
+
+COMMENT ON COLUMN public.tags.slug IS
+  'Lowercased, collapsed-whitespace form of label. The uniqueness key, so the
+   same tag typed three different ways resolves to one row.';
+
+CREATE TABLE IF NOT EXISTS public.work_item_tags (
+  work_item_id UUID NOT NULL REFERENCES public.work_items(id) ON DELETE CASCADE,
+  tag_id       UUID NOT NULL REFERENCES public.tags(id) ON DELETE CASCADE,
+  added_by     UUID REFERENCES public.users(id) DEFAULT auth.uid(),
+  added_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (work_item_id, tag_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_work_item_tags_tag ON public.work_item_tags(tag_id);
+
+ALTER TABLE public.tags           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.work_item_tags ENABLE ROW LEVEL SECURITY;
+
+-- The tag vocabulary is not secret: everyone signed in can read and extend it.
+-- What a tag is ATTACHED to is scoped to the work item, below.
+DROP POLICY IF EXISTS tags_select ON public.tags;
+CREATE POLICY tags_select ON public.tags FOR SELECT TO authenticated USING (TRUE);
+
+DROP POLICY IF EXISTS tags_insert ON public.tags;
+CREATE POLICY tags_insert ON public.tags FOR INSERT TO authenticated WITH CHECK (TRUE);
+
+-- Renaming or recolouring a tag changes it everywhere it is used, so that stays
+-- with managers even though creating one does not.
+DROP POLICY IF EXISTS tags_update ON public.tags;
+CREATE POLICY tags_update ON public.tags FOR UPDATE TO authenticated
+  USING (public.has_role(ARRAY['ADMIN','WORKFLOW_MANAGER','MANAGER']))
+  WITH CHECK (public.has_role(ARRAY['ADMIN','WORKFLOW_MANAGER','MANAGER']));
+
+DROP POLICY IF EXISTS tags_delete ON public.tags;
+CREATE POLICY tags_delete ON public.tags FOR DELETE TO authenticated
+  USING (public.has_role(ARRAY['ADMIN']));
+
+DROP POLICY IF EXISTS work_item_tags_select ON public.work_item_tags;
+CREATE POLICY work_item_tags_select ON public.work_item_tags FOR SELECT TO authenticated
+  USING (public.can_see_work_item(work_item_id));
+
+DROP POLICY IF EXISTS work_item_tags_insert ON public.work_item_tags;
+CREATE POLICY work_item_tags_insert ON public.work_item_tags FOR INSERT TO authenticated
+  WITH CHECK (public.can_see_work_item(work_item_id));
+
+DROP POLICY IF EXISTS work_item_tags_delete ON public.work_item_tags;
+CREATE POLICY work_item_tags_delete ON public.work_item_tags FOR DELETE TO authenticated
+  USING (public.can_see_work_item(work_item_id));
+
+
+-- ----------------------------------------------------------------------------
+-- Attach a tag by the text someone typed, creating it if new.
+--
+-- Doing this in one SQL function rather than a read-then-write in the app
+-- closes the race where two people add the same new tag at the same moment and
+-- the second gets a unique violation instead of a tag.
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.attach_tag(p_work_item_id UUID, p_label TEXT)
+RETURNS UUID
+LANGUAGE plpgsql SECURITY INVOKER SET search_path = public AS $$
+DECLARE
+  v_label TEXT := btrim(regexp_replace(p_label, '\s+', ' ', 'g'));
+  v_slug  TEXT := lower(btrim(regexp_replace(p_label, '\s+', ' ', 'g')));
+  v_id    UUID;
+BEGIN
+  IF v_label = '' THEN
+    RAISE EXCEPTION 'A tag needs a name' USING ERRCODE = '22023';
+  END IF;
+  IF char_length(v_label) > 40 THEN
+    RAISE EXCEPTION 'Tag names are limited to 40 characters' USING ERRCODE = '22023';
+  END IF;
+  IF v_slug !~ '^[a-z0-9][a-z0-9 -]*$' THEN
+    RAISE EXCEPTION 'Tags may use letters, numbers, spaces and hyphens only'
+      USING ERRCODE = '22023';
+  END IF;
+
+  INSERT INTO public.tags (slug, label)
+  VALUES (v_slug, v_label)
+  ON CONFLICT (slug) DO UPDATE SET slug = EXCLUDED.slug  -- no-op, to get the id back
+  RETURNING id INTO v_id;
+
+  INSERT INTO public.work_item_tags (work_item_id, tag_id)
+  VALUES (p_work_item_id, v_id)
+  ON CONFLICT DO NOTHING;
+
+  RETURN v_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.attach_tag(UUID, TEXT) TO authenticated;
+
+
+-- ============================================================================
+-- 3. STATUS CONTROL — only named people may move work
+-- ============================================================================
+-- Everyone gets a login and can do the day-to-day: see their work, attach
+-- files, tag, comment. Advancing a stage, approving, holding, resuming or
+-- editing status is reserved.
+--
+-- Expressed as the permission `change_status`. To let someone else do it,
+-- give them the STATUS_CONTROLLER role — no code change, no deploy.
+-- ----------------------------------------------------------------------------
+INSERT INTO public.roles (name, description, permissions) VALUES
+  ('STATUS_CONTROLLER',
+   'May move work between stages and change its status',
+   '["change_status","view_all","submit_work","approve_work","request_changes","reassign_work","modify_deadlines","view_reports"]')
+ON CONFLICT (name) DO UPDATE
+  SET description = EXCLUDED.description,
+      permissions = EXCLUDED.permissions;
+
+-- The disciplines KEEP submit_work. Handing your own finished work to the next
+-- person is not a status change — it is the act of doing your job, and the
+-- stated chain (designer designs it, THEN Vijaya proofreads it) cannot happen
+-- at all if a designer cannot pass work to Vijaya.
+--
+-- What is reserved is authority over the work's state: approving, rejecting,
+-- requesting changes, holding, cancelling, completing, or sending it backwards.
+-- See enforce_status_change_permission() below for exactly where the line falls.
+UPDATE public.roles
+   SET permissions = (permissions::jsonb || '["submit_work"]'::jsonb)
+ WHERE name IN ('CONTENT_WRITER','DESIGNER','SOCIAL_MEDIA','CREATOR')
+   AND NOT (permissions ? 'submit_work');
+
+-- ADMIN's own description is "Full system administration" (0001) — it should
+-- not need a name-matched STATUS_CONTROLLER grant to actually administer.
+-- Named-person grants below stay as the way to hand this to someone who is
+-- specifically a controller without also being an ADMIN.
+UPDATE public.roles
+   SET permissions = (permissions::jsonb || '["change_status"]'::jsonb)
+ WHERE name = 'ADMIN'
+   AND NOT (permissions ? 'change_status');
+
+CREATE OR REPLACE FUNCTION public.can_change_status()
+RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  -- auth.uid() IS NULL means this is a migration, the seed, or a dashboard
+  -- session — not a signed-in app user. Those are already trusted.
+  SELECT auth.uid() IS NULL OR public.has_permission('change_status');
+$$;
+
+GRANT EXECUTE ON FUNCTION public.can_change_status() TO authenticated;
+
+
+-- ----------------------------------------------------------------------------
+-- Is the current user the person this work item's CURRENT gate routes to?
+--
+-- Needed because the same instruction that reserves status also describes a
+-- chain in which Sushant and Parul verify work. Giving a verdict at a gate you
+-- are the registered approver for is doing your job; it is not an override,
+-- and blocking it would delete two of the three verification steps the team
+-- actually described.
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.is_designated_approver(p_work_item_id UUID)
+RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.work_items w
+    JOIN public.workflow_stages s ON s.id = w.current_stage_id
+    JOIN public.approval_authorities aa
+      ON aa.work_category = s.approval_category
+     AND aa.is_active
+    WHERE w.id = p_work_item_id
+      AND s.requires_approval
+      AND aa.approver_id = auth.uid()
+  );
+$$;
+
+GRANT EXECUTE ON FUNCTION public.is_designated_approver(UUID) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.enforce_status_change_permission()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_old_order INT;
+  v_new_order INT;
+  v_new_terminal BOOLEAN := FALSE;
+  v_is_approver BOOLEAN;
+  v_reserved  BOOLEAN := FALSE;
+  v_reason    TEXT;
+BEGIN
+  -- Migrations, the seed and the SQL editor run with no signed-in user.
+  IF auth.uid() IS NULL THEN RETURN NEW; END IF;
+  IF public.can_change_status() THEN RETURN NEW; END IF;
+
+  -- Resolved against the stage the item is LEAVING, which is the gate whose
+  -- verdict is being given.
+  v_is_approver := public.is_designated_approver(OLD.id);
+
+  SELECT stage_order INTO v_old_order FROM public.workflow_stages WHERE id = OLD.current_stage_id;
+  SELECT stage_order, is_terminal INTO v_new_order, v_new_terminal
+    FROM public.workflow_stages WHERE id = NEW.current_stage_id;
+
+  -- A verdict on someone's work.
+  IF NEW.approval_status IS DISTINCT FROM OLD.approval_status
+     AND NEW.approval_status IN ('APPROVED','REJECTED','CHANGES_REQUIRED')
+     AND NOT v_is_approver THEN
+    v_reserved := TRUE;
+    v_reason   := 'approve work or send it back';
+
+  -- Parking or killing work.
+  --
+  -- COMPLETED is deliberately NOT in this list on its own. Submitting the last
+  -- stage moves the item into the terminal stage, and the engine sets
+  -- COMPLETED as part of that — so treating every COMPLETED as an override
+  -- would block the final handoff for the one person whose job it is (Indu,
+  -- posting it). Declaring something complete WITHOUT walking it there is
+  -- still reserved.
+  ELSIF NEW.status IS DISTINCT FROM OLD.status
+        AND (
+          NEW.status IN ('ON_HOLD','BLOCKED','CANCELLED','REJECTED')
+          OR (NEW.status = 'COMPLETED'
+              AND NOT (v_new_terminal AND COALESCE(v_new_order, 0) >= COALESCE(v_old_order, 0)))
+        ) THEN
+    v_reserved := TRUE;
+    v_reason   := 'put work on hold, cancel it or mark it complete';
+
+  -- Pulling something back to an earlier stage.
+  ELSIF v_new_order IS NOT NULL AND v_old_order IS NOT NULL AND v_new_order < v_old_order
+        AND NOT v_is_approver THEN
+    v_reserved := TRUE;
+    v_reason   := 'move work back to an earlier stage';
+
+  -- Moving work that is not yours. Passing on your OWN finished work is the
+  -- job; moving someone else's is a scheduling decision.
+  --
+  -- work_item_owners is checked as well as can_edit_work_item(), because on a
+  -- COLLABORATIVE item the second collaborator is neither the assignee nor the
+  -- owner — they hold half the work and nothing else. Without this, the
+  -- multi-owner gate could be opened by one person and never closed by the
+  -- other, which is the one case where work would silently stick forever.
+  ELSIF NEW.current_stage_id IS DISTINCT FROM OLD.current_stage_id
+        AND NOT v_is_approver
+        AND NOT public.can_edit_work_item(NEW.id)
+        AND NOT EXISTS (
+          SELECT 1 FROM public.work_item_owners o
+          WHERE o.work_item_id = NEW.id AND o.user_id = auth.uid()
+        ) THEN
+    v_reserved := TRUE;
+    v_reason   := 'move work that is not assigned to you';
+  END IF;
+
+  IF v_reserved THEN
+    RAISE EXCEPTION
+      'Only Vijaya and Nirmal can % . You can submit your own finished work, attach files, add tags and comment.',
+      v_reason
+      USING ERRCODE = '42501';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_work_items_status_permission ON public.work_items;
+CREATE TRIGGER trg_work_items_status_permission
+  BEFORE UPDATE ON public.work_items
+  FOR EACH ROW EXECUTE FUNCTION public.enforce_status_change_permission();
+
+
+-- ----------------------------------------------------------------------------
+-- Give it to the two people named, by name, the way 0011 assigns every other
+-- role. Matching on full_name keeps this working whether or not the import has
+-- run, and whether or not they have logins yet.
+-- ----------------------------------------------------------------------------
+INSERT INTO public.user_roles (user_id, role_id)
+SELECT u.id, r.id
+FROM public.users u
+CROSS JOIN public.roles r
+WHERE r.name = 'STATUS_CONTROLLER'
+  AND lower(btrim(u.full_name)) IN ('vijaya','nirmal')
+ON CONFLICT DO NOTHING;
+
+-- The account actually signed in as Vijaya is an ADMIN and may not be named
+-- "Vijaya" in full_name, so cover it by email too.
+INSERT INTO public.user_roles (user_id, role_id)
+SELECT u.id, r.id
+FROM public.users u
+CROSS JOIN public.roles r
+WHERE r.name = 'STATUS_CONTROLLER'
+  AND lower(u.email) = 'drvijayadutta@gmail.com'
+ON CONFLICT DO NOTHING;
+
+
+-- ============================================================================
+-- 4. COMMENTS — replies, resolve, soft delete
+-- ============================================================================
+-- parent_id and is_resolved have existed since 0004 and were never used by the
+-- UI. Nothing to add to the schema; what was missing was a delete policy, so
+-- an author could edit a comment but never retract one.
+-- ----------------------------------------------------------------------------
+CREATE INDEX IF NOT EXISTS idx_comments_parent ON public.comments(parent_id)
+  WHERE parent_id IS NOT NULL AND deleted_at IS NULL;
+
+ALTER TABLE public.comments
+  ALTER COLUMN author_id SET DEFAULT auth.uid();
+
+-- Soft delete only — the row stays for the audit trail, the body is hidden by
+-- the app. Hard DELETE remains closed to everyone but an admin.
+DROP POLICY IF EXISTS comments_delete ON public.comments;
+CREATE POLICY comments_delete ON public.comments FOR DELETE TO authenticated
+  USING (public.has_role(ARRAY['ADMIN']));
+
+
+-- ============================================================================
+-- 5. Convenience view: work items with their tags, for list filtering
+-- ============================================================================
+CREATE OR REPLACE VIEW public.v_work_item_tags
+WITH (security_invoker = TRUE) AS
+SELECT
+  wit.work_item_id,
+  t.id   AS tag_id,
+  t.slug,
+  t.label,
+  t.colour
+FROM public.work_item_tags wit
+JOIN public.tags t ON t.id = wit.tag_id;
+
+GRANT SELECT ON public.v_work_item_tags TO authenticated;
+
+-- ####### 0016_parallel_po_track.sql #######
+
+-- ============================================================================
+-- 0016_parallel_po_track.sql — procurement runs ALONGSIDE the work, not in
+--                              front of it
+-- ============================================================================
+-- Stated by the team lead:
+--   "all PO related tasks should be aligned simultaneously and make it easy
+--    to follow"
+--
+-- WHAT WAS WRONG
+--
+-- 0008 modelled procurement as a detour on the critical path:
+--
+--   Department Approval -> PO Request -> Procurement Review -> PO Approval
+--                       -> PO Released -> Production -> ...
+--
+-- So a hoarding whose artwork was signed off on Monday could not START
+-- production until a purchase order had been raised, reviewed, approved and
+-- issued. Four stages of waiting, during which the work item showed a
+-- procurement stage as its status and the creative team had nothing to look at.
+-- Every PO item was structurally late.
+--
+-- WHAT THIS CHANGES
+--
+-- Procurement becomes a SECOND TRACK that opens the moment departmental
+-- approval is given, and runs at the same time as production:
+--
+--   main track :  Department Approval -> Production -> Final Approval -> Release
+--   PO track   :  Requested -> In Review -> Approved -> Released
+--                 (opens automatically, at the same moment)
+--
+-- The real constraint is kept, and only the real one: work cannot go LIVE
+-- before the PO is released. Everything up to that point proceeds in parallel.
+-- That is enforced at the bottom of this file, with a message that says what
+-- is missing rather than silently refusing.
+--
+-- Idempotent. Safe to run twice.
+-- ============================================================================
+
+
+-- ============================================================================
+-- 1. Take procurement off the critical path
+-- ============================================================================
+-- The fork out of DEPARTMENT_APPROVAL had two edges. Both now lead to
+-- PRODUCTION; what po_required decides is no longer WHERE the work goes, but
+-- whether a PO track is opened beside it.
+--
+-- resolve_submit_trigger() still returns 'PO_REQUIRED' / 'NO_PO' and needs no
+-- change — the edge it names simply has a different destination now.
+-- ----------------------------------------------------------------------------
+-- Generic on purpose. Two workflow templates exist (the generic one from 0008
+-- and 'Sharda Marketing Workflow' from 0012, which is the default), and the PO
+-- fork sits at a DIFFERENT stage in each: DEPARTMENT_APPROVAL in one,
+-- FINAL_APPROVAL in the other. Naming either here would have silently fixed
+-- one workflow and left the live one untouched.
+--
+-- So: wherever a PO_REQUIRED edge exists, point it at whatever its NO_PO
+-- sibling points at. The fork collapses; po_required stops deciding the route.
+UPDATE public.workflow_transitions po
+   SET to_stage_id = nopo.to_stage_id,
+       description = 'Approved — production starts; PO runs alongside'
+  FROM public.workflow_transitions nopo
+ WHERE po.trigger_condition   = 'PO_REQUIRED'
+   AND nopo.trigger_condition = 'NO_PO'
+   AND nopo.from_stage_id     = po.from_stage_id
+   AND nopo.workflow_id       = po.workflow_id;
+
+
+-- ----------------------------------------------------------------------------
+-- Mark the four procurement stages as belonging to the parallel track, so the
+-- UI can draw them as a side rail instead of numbering them 7-10 of the main
+-- line. They stay in the table: work items imported before this migration may
+-- still be sitting on one, and deleting the stage would orphan them.
+-- ----------------------------------------------------------------------------
+ALTER TABLE public.workflow_stages
+  ADD COLUMN IF NOT EXISTS track TEXT NOT NULL DEFAULT 'MAIN';
+
+ALTER TABLE public.workflow_stages
+  DROP CONSTRAINT IF EXISTS chk_stage_track;
+ALTER TABLE public.workflow_stages
+  ADD CONSTRAINT chk_stage_track CHECK (track IN ('MAIN','PO'));
+
+UPDATE public.workflow_stages
+   SET track = 'PO'
+ WHERE name IN ('PO_REQUEST','PROCUREMENT_REVIEW','PO_APPROVAL','PO_RELEASED');
+
+COMMENT ON COLUMN public.workflow_stages.track IS
+  'MAIN = the critical path. PO = the procurement track that runs in parallel.
+   The stepper renders the two separately.';
+
+
+-- ============================================================================
+-- 2. The PO track itself
+-- ============================================================================
+-- work_items.po_status already had exactly the right five states
+-- (NOT_STARTED -> REQUESTED -> IN_REVIEW -> APPROVED -> RELEASED, plus
+-- REJECTED). Nothing new to model: what was missing was anything that MOVED
+-- it, and anyone whose job it was to.
+-- ----------------------------------------------------------------------------
+
+-- Who approves a PO, and for what value. Resolved from approval_authorities
+-- exactly like every other gate — never a constant in code.
+CREATE OR REPLACE FUNCTION public.resolve_po_approver(p_amount NUMERIC DEFAULT NULL)
+RETURNS UUID LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT aa.approver_id
+  FROM public.approval_authorities aa
+  WHERE aa.is_active
+    AND aa.work_category = 'po'
+    AND (p_amount IS NULL OR (
+          aa.amount_min <= p_amount
+          AND (aa.amount_max IS NULL OR aa.amount_max >= p_amount)))
+  ORDER BY aa.approval_level, aa.amount_min DESC
+  LIMIT 1;
+$$;
+
+
+-- ----------------------------------------------------------------------------
+-- Open the PO track for a work item.
+--
+-- Called automatically by the trigger below when departmental approval is
+-- given on PO work, and callable by hand for an item that needs a PO raised
+-- earlier or later than usual.
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.open_po_track(
+  p_work_item_id UUID,
+  p_amount       NUMERIC DEFAULT NULL,
+  p_description  TEXT    DEFAULT NULL
+)
+RETURNS UUID LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_work     public.work_items%ROWTYPE;
+  v_po_id    UUID;
+  v_approver UUID;
+  v_stage    UUID;
+BEGIN
+  SELECT * INTO v_work FROM public.work_items WHERE id = p_work_item_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Work item not found' USING ERRCODE = 'P0002';
+  END IF;
+
+  -- Already open. Returning the existing PO rather than raising keeps the
+  -- trigger below idempotent through re-approvals and return paths.
+  IF v_work.po_request_id IS NOT NULL THEN
+    RETURN v_work.po_request_id;
+  END IF;
+
+  v_approver := public.resolve_po_approver(p_amount);
+
+  INSERT INTO public.po_requests (
+    work_item_id, amount, description, status, raised_by, submitted_at
+  ) VALUES (
+    p_work_item_id,
+    p_amount,
+    COALESCE(p_description, 'Procurement for: ' || v_work.name),
+    'SUBMITTED',
+    auth.uid(),
+    NOW()
+  )
+  RETURNING id INTO v_po_id;
+
+  UPDATE public.work_items
+     SET po_request_id = v_po_id,
+         po_status     = 'REQUESTED'
+   WHERE id = p_work_item_id;
+
+  -- A task, so the PO shows up in somebody's My Work rather than depending on
+  -- a person remembering to look. Without this the parallel track is invisible
+  -- and simply becomes a slower version of the old serial one.
+  SELECT id INTO v_stage
+  FROM public.workflow_stages
+  WHERE workflow_id = v_work.workflow_id AND name = 'PO_APPROVAL';
+
+  IF v_approver IS NOT NULL THEN
+    INSERT INTO public.tasks (
+      work_item_id, stage_id, assignee_id, title, instructions,
+      action_type, priority, due_date
+    ) VALUES (
+      p_work_item_id,
+      v_stage,
+      v_approver,
+      'Raise and approve PO — ' || v_work.name,
+      'Procurement runs alongside production. The work does not wait for this, '
+        || 'but it cannot be released until the PO is issued.',
+      'APPROVE_PO',
+      v_work.priority,
+      COALESCE(v_work.deadline, CURRENT_DATE + 3)
+    );
+  END IF;
+
+  INSERT INTO public.activity_log (work_item_id, actor_id, action, to_value, detail)
+  VALUES (p_work_item_id, auth.uid(), 'PO_TRACK_OPENED', 'REQUESTED',
+          jsonb_build_object('po_request_id', v_po_id, 'approver_id', v_approver));
+
+  RETURN v_po_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.open_po_track(UUID, NUMERIC, TEXT) TO authenticated;
+
+
+-- ----------------------------------------------------------------------------
+-- Advance the PO track one step, independently of the main workflow.
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.advance_po_track(
+  p_work_item_id UUID,
+  p_to_status    TEXT,
+  p_note         TEXT DEFAULT NULL
+)
+RETURNS TEXT LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_work public.work_items%ROWTYPE;
+  v_next TEXT := upper(btrim(p_to_status));
+BEGIN
+  IF auth.uid() IS NOT NULL AND NOT public.can_change_status() THEN
+    RAISE EXCEPTION
+      'Only Vijaya and Nirmal can move a purchase order along.'
+      USING ERRCODE = '42501';
+  END IF;
+
+  SELECT * INTO v_work FROM public.work_items WHERE id = p_work_item_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Work item not found' USING ERRCODE = 'P0002';
+  END IF;
+
+  IF NOT v_work.po_required THEN
+    RAISE EXCEPTION 'This work item does not need a purchase order'
+      USING ERRCODE = '22023';
+  END IF;
+
+  IF v_next NOT IN ('REQUESTED','IN_REVIEW','APPROVED','RELEASED','REJECTED') THEN
+    RAISE EXCEPTION 'Unknown PO status "%"', v_next USING ERRCODE = '22023';
+  END IF;
+
+  UPDATE public.work_items SET po_status = v_next WHERE id = p_work_item_id;
+
+  UPDATE public.po_requests
+     SET status = CASE v_next
+                    WHEN 'REQUESTED' THEN 'SUBMITTED'
+                    WHEN 'IN_REVIEW' THEN 'IN_REVIEW'
+                    WHEN 'APPROVED'  THEN 'APPROVED'
+                    WHEN 'RELEASED'  THEN 'RELEASED'
+                    WHEN 'REJECTED'  THEN 'REJECTED'
+                  END,
+         approved_by = CASE WHEN v_next IN ('APPROVED','RELEASED')
+                            THEN COALESCE(approved_by, auth.uid()) ELSE approved_by END,
+         approved_at = CASE WHEN v_next = 'APPROVED' THEN COALESCE(approved_at, NOW())
+                            ELSE approved_at END,
+         released_at = CASE WHEN v_next = 'RELEASED' THEN COALESCE(released_at, NOW())
+                            ELSE released_at END
+   WHERE id = v_work.po_request_id;
+
+  -- Close the PO task once procurement is done with it.
+  IF v_next IN ('RELEASED','REJECTED') THEN
+    UPDATE public.tasks
+       SET closed_at = NOW(), status = 'COMPLETED', closed_reason = v_next
+     WHERE work_item_id = p_work_item_id
+       AND action_type = 'APPROVE_PO'
+       AND closed_at IS NULL;
+  END IF;
+
+  INSERT INTO public.activity_log (work_item_id, actor_id, action, from_value, to_value, detail)
+  VALUES (p_work_item_id, auth.uid(), 'PO_STATUS_CHANGED',
+          v_work.po_status, v_next,
+          CASE WHEN p_note IS NULL THEN NULL ELSE jsonb_build_object('note', p_note) END);
+
+  RETURN v_next;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.advance_po_track(UUID, TEXT, TEXT) TO authenticated;
+
+
+-- ============================================================================
+-- 3. Open the track automatically, at the same moment approval is given
+-- ============================================================================
+-- "Simultaneously" has to mean automatically. If opening the PO track were a
+-- button someone had to remember to press, procurement would start late again
+-- — just for a different reason.
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.auto_open_po_track()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_left_po_fork_stage BOOLEAN;
+BEGIN
+  IF NOT NEW.po_required OR NEW.po_request_id IS NOT NULL THEN
+    RETURN NEW;
+  END IF;
+
+  -- "The stage the PO fork hangs off", resolved from the transition table
+  -- rather than named, for the same reason as above.
+  SELECT EXISTS (
+    SELECT 1 FROM public.workflow_transitions t
+    WHERE t.from_stage_id = OLD.current_stage_id
+      AND t.trigger_condition = 'PO_REQUIRED'
+  ) INTO v_left_po_fork_stage;
+
+  IF NEW.current_stage_id IS DISTINCT FROM OLD.current_stage_id
+     AND v_left_po_fork_stage
+  THEN
+    PERFORM public.open_po_track(NEW.id);
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+-- AFTER, not BEFORE: open_po_track writes to work_items itself, and doing that
+-- from a BEFORE trigger on the same row is how you get a recursion that only
+-- shows up in production.
+DROP TRIGGER IF EXISTS trg_work_items_auto_po ON public.work_items;
+CREATE TRIGGER trg_work_items_auto_po
+  AFTER UPDATE ON public.work_items
+  FOR EACH ROW EXECUTE FUNCTION public.auto_open_po_track();
+
+
+-- ============================================================================
+-- 4. The one constraint that survives: nothing goes live without its PO
+-- ============================================================================
+CREATE OR REPLACE FUNCTION public.enforce_po_before_release()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_entering_release BOOLEAN;
+BEGIN
+  IF NOT NEW.po_required THEN RETURN NEW; END IF;
+  IF NEW.current_stage_id IS NOT DISTINCT FROM OLD.current_stage_id THEN RETURN NEW; END IF;
+
+  SELECT EXISTS (
+    SELECT 1 FROM public.workflow_stages s
+    WHERE s.id = NEW.current_stage_id AND s.name IN ('RELEASE','COMPLETED')
+  ) INTO v_entering_release;
+
+  IF v_entering_release AND NEW.po_status NOT IN ('RELEASED','NOT_REQUIRED') THEN
+    RAISE EXCEPTION
+      'This work cannot be released yet: its purchase order is %, not RELEASED. Production and approvals were free to run in parallel, but release waits for procurement.',
+      NEW.po_status
+      USING ERRCODE = '42501';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_work_items_po_before_release ON public.work_items;
+CREATE TRIGGER trg_work_items_po_before_release
+  BEFORE UPDATE ON public.work_items
+  FOR EACH ROW EXECUTE FUNCTION public.enforce_po_before_release();
+
+
+-- ============================================================================
+-- 5. Make it easy to follow
+-- ============================================================================
+-- One row per PO step per work item, already ordered and already labelled
+-- done / current / pending. The UI draws it; it does not compute it, so the
+-- rail on screen and the rule in the database cannot disagree.
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.po_step_rank(p_status TEXT)
+RETURNS INT LANGUAGE sql IMMUTABLE AS $$
+  SELECT CASE p_status
+           WHEN 'NOT_STARTED' THEN 0
+           WHEN 'REQUESTED'   THEN 1
+           WHEN 'IN_REVIEW'   THEN 2
+           WHEN 'APPROVED'    THEN 3
+           WHEN 'RELEASED'    THEN 5   -- past the last step: all four are done
+           ELSE 0
+         END;
+$$;
+
+CREATE OR REPLACE VIEW public.v_po_track
+WITH (security_invoker = TRUE) AS
+WITH steps(step_order, code, label) AS (
+  VALUES (1, 'REQUESTED', 'PO raised'),
+         (2, 'IN_REVIEW', 'Procurement review'),
+         (3, 'APPROVED',  'PO approved'),
+         (4, 'RELEASED',  'Issued to vendor')
+)
+SELECT
+  w.id AS work_item_id,
+  s.step_order,
+  s.code,
+  s.label,
+  CASE
+    WHEN w.po_status = 'REJECTED' THEN 'rejected'
+    WHEN s.step_order < public.po_step_rank(w.po_status) THEN 'done'
+    WHEN s.step_order = public.po_step_rank(w.po_status) THEN 'current'
+    ELSE 'pending'
+  END AS state
+FROM public.work_items w
+CROSS JOIN steps s
+WHERE w.po_required;
+
+GRANT EXECUTE ON FUNCTION public.po_step_rank(TEXT) TO authenticated;
+GRANT SELECT ON public.v_po_track TO authenticated;
+
+
+-- ----------------------------------------------------------------------------
+-- Backfill: items already sitting on a procurement stage move onto the main
+-- track at Production, keeping the PO status they had. Without this they would
+-- be stranded on a stage that no longer has an outgoing edge.
+-- ----------------------------------------------------------------------------
+UPDATE public.work_items w
+   SET current_stage_id = prod.id,
+       po_status = CASE
+                     WHEN w.po_status IN ('NOT_REQUIRED','NOT_STARTED') THEN 'REQUESTED'
+                     ELSE w.po_status
+                   END
+  FROM public.workflow_stages cur,
+       public.workflow_stages prod
+ WHERE w.current_stage_id = cur.id
+   AND cur.track = 'PO'
+   AND prod.workflow_id = cur.workflow_id
+   AND prod.name = 'PRODUCTION';
+
+-- ####### 0017_creative_chain.sql #######
+
+-- ============================================================================
+-- 0017_creative_chain.sql — the creative process as the team actually runs it
+-- ============================================================================
+-- Stated by the team lead:
+--
+--   "any creative goes through the process of concept creation, copy creation,
+--    designer designs it, then Vijaya proofreads it, then Nirmal/Sushant
+--    verifies, then Parul verifies"
+--
+-- Against what 0012 already had, that is two changes, not a rewrite:
+--
+--   1. CONCEPT CREATION did not exist. Work went straight from the leadership
+--      brief to copywriting, so the step where the idea is actually formed had
+--      nowhere to live and no owner.
+--
+--   2. Vijaya's review was a pass-through stage, not a gate. It could only be
+--      "submitted", never "approved" or "sent back" — so a proofread that
+--      found problems had no way to return the piece to the designer, and the
+--      two verifications above it (Sushant/Nirmal, then Parul) were the only
+--      real checkpoints. Proofreading is a verification; it is now modelled as
+--      one, matching the two steps that follow it.
+--
+-- Everything else in the chain was already correct: copy -> design ->
+-- Vijaya -> managers -> Parul, each pointing at a ROLE, with the approvers
+-- resolved from approval_authorities.
+--
+-- Idempotent. Safe to run twice.
+-- ============================================================================
+
+DO $$
+DECLARE
+  v_workflow UUID;
+BEGIN
+  SELECT id INTO v_workflow
+  FROM public.workflow_templates
+  WHERE name = 'Sharda Marketing Workflow';
+
+  IF v_workflow IS NULL THEN
+    RAISE NOTICE 'Sharda Marketing Workflow not present — 0012 has not run. Nothing to do.';
+    RETURN;
+  END IF;
+
+  -- --------------------------------------------------------------------------
+  -- stage_order is UNIQUE per workflow, so inserting a stage in the middle
+  -- cannot simply renumber in place — the first UPDATE would collide with a
+  -- row that has not moved yet. Park everything above the range first.
+  -- --------------------------------------------------------------------------
+  UPDATE public.workflow_stages
+     SET stage_order = stage_order + 100
+   WHERE workflow_id = v_workflow;
+
+  -- --------------------------------------------------------------------------
+  -- 1. Concept creation
+  -- --------------------------------------------------------------------------
+  -- Owned by CONTENT_WRITER. The concept is agreed with the team before copy
+  -- is written, and Vijaya is the content lead; no separate "concept" role was
+  -- named, and inventing one would create a role nobody holds.
+  -- --------------------------------------------------------------------------
+  INSERT INTO public.workflow_stages
+    (workflow_id, name, stage_order, description,
+     requires_approval, requires_attachment, expected_role_id,
+     approval_category, is_terminal)
+  VALUES (
+    v_workflow, 'CONCEPT', 2,
+    'The idea and angle agreed before any copy is written',
+    FALSE, FALSE,
+    (SELECT id FROM public.roles WHERE name = 'CONTENT_WRITER'),
+    NULL, FALSE
+  )
+  ON CONFLICT (workflow_id, name) DO UPDATE
+    SET stage_order  = EXCLUDED.stage_order,
+        description  = EXCLUDED.description;
+
+  -- --------------------------------------------------------------------------
+  -- 2. Final ordering of the main track, then the parallel PO track
+  -- --------------------------------------------------------------------------
+  UPDATE public.workflow_stages s
+     SET stage_order = v.ord,
+         description = COALESCE(v.descr, s.description)
+    FROM (VALUES
+      ('LEADERSHIP_BRIEF',   1,  'Discussion with leadership or the requesting doctor; scope agreed'),
+      ('CONCEPT',            2,  'The idea and angle agreed before any copy is written'),
+      ('CONTENT',            3,  'Copy and messaging written'),
+      ('DESIGN',             4,  'Designer produces the artwork'),
+      ('CONTENT_REVIEW',     5,  'Vijaya proofreads the finished piece'),
+      ('MANAGER_APPROVAL',   6,  'Nirmal or Sushant verifies'),
+      ('FINAL_APPROVAL',     7,  'Parul verifies'),
+      ('PRODUCTION',         8,  'Printed, produced or built'),
+      ('RELEASE',            9,  'Published, posted or put up'),
+      ('COMPLETED',         10,  'Closed out'),
+      ('PO_REQUEST',        11,  'Purchase order raised with costing'),
+      ('PROCUREMENT_REVIEW',12,  'Vendor and cost checked'),
+      ('PO_APPROVAL',       13,  'Purchase order approved'),
+      ('PO_RELEASED',       14,  'PO issued to the vendor')
+    ) AS v(name, ord, descr)
+   WHERE s.workflow_id = v_workflow AND s.name = v.name;
+
+  -- Anything this migration does not know about (a stage added by hand) keeps
+  -- its relative position rather than colliding at the bottom.
+  UPDATE public.workflow_stages
+     SET stage_order = stage_order - 80
+   WHERE workflow_id = v_workflow AND stage_order > 100;
+
+  -- --------------------------------------------------------------------------
+  -- 3. Vijaya's proofread becomes a real verification gate
+  -- --------------------------------------------------------------------------
+  UPDATE public.workflow_stages
+     SET requires_approval = TRUE,
+         approval_category = 'proofread'
+   WHERE workflow_id = v_workflow AND name = 'CONTENT_REVIEW';
+
+  -- The PO stages belong to the parallel track introduced in 0016. Re-asserted
+  -- here because this migration may run on a database where 0016 has already
+  -- set it and the UPDATE above rewrote nothing else about them.
+  UPDATE public.workflow_stages
+     SET track = 'PO'
+   WHERE workflow_id = v_workflow
+     AND name IN ('PO_REQUEST','PROCUREMENT_REVIEW','PO_APPROVAL','PO_RELEASED');
+END $$;
+
+
+-- ----------------------------------------------------------------------------
+-- 4. Vijaya is the proofread approver
+-- ----------------------------------------------------------------------------
+-- Matched on name like every other authority in 0011, and on the signed-in
+-- account's email as well, because the person who logs in as Vijaya may not
+-- be the same row as the "Vijaya" the job list imported.
+-- ----------------------------------------------------------------------------
+INSERT INTO public.approval_authorities (approver_id, work_category, approval_level)
+SELECT u.id, 'proofread', 1
+FROM public.users u
+WHERE (lower(btrim(u.full_name)) = 'vijaya' OR lower(u.email) = 'drvijayadutta@gmail.com')
+  AND NOT EXISTS (
+    SELECT 1 FROM public.approval_authorities a
+    WHERE a.approver_id = u.id AND a.work_category = 'proofread'
+  );
+
+-- An approval gate routes to someone holding APPROVER, so Vijaya needs it for
+-- the same reason the managers were given it in 0011.
+INSERT INTO public.user_roles (user_id, role_id)
+SELECT u.id, r.id
+FROM public.users u, public.roles r
+WHERE (lower(btrim(u.full_name)) = 'vijaya' OR lower(u.email) = 'drvijayadutta@gmail.com')
+  AND r.name = 'APPROVER'
+ON CONFLICT (user_id, role_id) DO NOTHING;
+
+
+-- ----------------------------------------------------------------------------
+-- 5. Routing
+-- ----------------------------------------------------------------------------
+-- CONTENT_REVIEW's outgoing edge changes trigger: it used to leave on
+-- SUBMISSION (a pass-through), and now leaves on APPROVED (a gate). The old
+-- edge is deleted rather than left in place — a stale SUBMISSION edge out of
+-- an approval stage is exactly the kind of leftover that lets work skip a gate.
+-- ----------------------------------------------------------------------------
+DELETE FROM public.workflow_transitions t
+USING public.workflow_stages s, public.workflow_templates w
+WHERE t.from_stage_id = s.id
+  AND s.workflow_id = w.id
+  AND w.name = 'Sharda Marketing Workflow'
+  AND s.name = 'CONTENT_REVIEW'
+  AND t.trigger_condition = 'SUBMISSION';
+
+WITH w AS (SELECT id FROM public.workflow_templates WHERE name = 'Sharda Marketing Workflow'),
+     s AS (SELECT name, id FROM public.workflow_stages WHERE workflow_id = (SELECT id FROM w))
+INSERT INTO public.workflow_transitions
+  (workflow_id, from_stage_id, to_stage_id, trigger_condition, description)
+SELECT (SELECT id FROM w),
+       (SELECT id FROM s WHERE s.name = e.from_name),
+       (SELECT id FROM s WHERE s.name = e.to_name),
+       e.trig, e.descr
+FROM (VALUES
+  -- The creative chain, in the order it was described
+  ('LEADERSHIP_BRIEF',  'CONCEPT',          'SUBMISSION',       'Brief agreed'),
+  ('CONCEPT',           'CONTENT',          'SUBMISSION',       'Concept agreed'),
+  ('CONTENT',           'DESIGN',           'SUBMISSION',       'Copy ready'),
+  ('DESIGN',            'CONTENT_REVIEW',   'SUBMISSION',       'Design ready for proofreading'),
+  ('CONTENT_REVIEW',    'MANAGER_APPROVAL', 'APPROVED',         'Vijaya proofread it'),
+  ('MANAGER_APPROVAL',  'FINAL_APPROVAL',   'APPROVED',         'Nirmal or Sushant verified'),
+
+  -- Parul's verification releases the work. Both edges lead to production:
+  -- since 0016 the purchase order runs alongside rather than in front.
+  ('FINAL_APPROVAL',    'PRODUCTION',       'NO_PO',            'Parul verified'),
+  ('FINAL_APPROVAL',    'PRODUCTION',       'PO_REQUIRED',      'Parul verified — PO runs alongside'),
+
+  ('PRODUCTION',        'RELEASE',          'SUBMISSION',       'Produced'),
+  ('RELEASE',           'COMPLETED',        'SUBMISSION',       'Live'),
+
+  -- Return paths. Each verification sends the piece back to the desk where the
+  -- fixing happens, which is the whole point of naming them separately: a
+  -- proofreading error goes to the designer, not back to the brief.
+  ('CONTENT_REVIEW',    'DESIGN',           'CHANGES_REQUIRED', 'Vijaya wants changes'),
+  ('MANAGER_APPROVAL',  'DESIGN',           'CHANGES_REQUIRED', 'Manager wants changes'),
+  ('FINAL_APPROVAL',    'DESIGN',           'CHANGES_REQUIRED', 'Parul wants changes'),
+  ('PO_APPROVAL',       'PO_REQUEST',       'CHANGES_REQUIRED', 'PO needs reworking')
+) AS e(from_name, to_name, trig, descr)
+WHERE (SELECT id FROM s WHERE s.name = e.from_name) IS NOT NULL
+  AND (SELECT id FROM s WHERE s.name = e.to_name)   IS NOT NULL
+ON CONFLICT (workflow_id, from_stage_id, trigger_condition) DO UPDATE
+  SET to_stage_id = EXCLUDED.to_stage_id,
+      description = EXCLUDED.description;
+
+-- ####### 0018_daily_digest.sql #######
+
+-- ============================================================================
+-- 0018_daily_digest.sql — the 6pm end-of-day status digest
+-- ============================================================================
+-- Stated by the team lead:
+--   "everybody should get notification on WhatsApp group at the end of the day
+--    6 pm about the status of work aligned for the particular day"
+--
+-- This file provides the CONTENT. Delivery is in src/app/api/digest/, because
+-- of a constraint worth stating plainly rather than discovering later:
+--
+--   The official WhatsApp Business/Cloud API cannot post to a group. It sends
+--   to individual numbers only. Meta has never exposed group messaging, and
+--   the services that claim to do it drive an unofficial client that gets
+--   numbers banned.
+--
+-- So the digest is produced once, here, and delivered three ways: an in-app
+-- notification per person, an individual WhatsApp message per person where a
+-- number and API credentials exist, and a formatted block on /digest that one
+-- person pastes into the group in a single tap. The first two are automatic;
+-- the third is the honest version of "post it to the group".
+--
+-- Idempotent. Safe to run twice.
+-- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- A place to keep the digest secret, so the cron endpoint can read the digest
+-- without a service_role key. That key bypasses row-level security entirely
+-- and would undo the guarantee the whole schema is built on; a single-purpose
+-- shared secret that unlocks exactly one read-only function does not.
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.app_settings (
+  key        TEXT PRIMARY KEY,
+  value      TEXT NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
+
+-- No policy for `authenticated` at all: RLS with zero policies denies everyone.
+-- Only SECURITY DEFINER functions below can read it.
+DROP POLICY IF EXISTS app_settings_admin ON public.app_settings;
+CREATE POLICY app_settings_admin ON public.app_settings FOR ALL TO authenticated
+  USING (public.has_role(ARRAY['ADMIN']))
+  WITH CHECK (public.has_role(ARRAY['ADMIN']));
+
+INSERT INTO public.app_settings (key, value)
+VALUES ('digest_secret',
+        replace(gen_random_uuid()::text, '-', '') ||
+        replace(gen_random_uuid()::text, '-', ''))
+ON CONFLICT (key) DO NOTHING;
+
+
+-- ----------------------------------------------------------------------------
+-- "Work aligned for the particular day"
+--
+-- Read as: everything that was supposed to move today. That is wider than
+-- "deadline = today" — a digest that omitted the three items that went
+-- overdue yesterday would be the most misleading message of the day.
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.daily_digest_rows()
+RETURNS TABLE (
+  bucket        TEXT,
+  work_item_id  UUID,
+  name          TEXT,
+  stage_name    TEXT,
+  status        TEXT,
+  owner_name    TEXT,
+  owner_id      UUID,
+  deadline      DATE,
+  po_status     TEXT,
+  priority      TEXT
+)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT
+    CASE
+      WHEN w.status IN ('COMPLETED','CANCELLED')                       THEN 'completed_today'
+      WHEN COALESCE(w.stage_deadline, w.deadline) < CURRENT_DATE       THEN 'overdue'
+      WHEN COALESCE(w.stage_deadline, w.deadline) = CURRENT_DATE       THEN 'due_today'
+      WHEN w.status IN ('ON_HOLD','BLOCKED')                           THEN 'blocked'
+      ELSE 'in_flight'
+    END AS bucket,
+    w.id,
+    w.name,
+    COALESCE(s.name, 'No stage'),
+    w.status,
+    u.full_name,
+    w.current_assignee_id,
+    COALESCE(w.stage_deadline, w.deadline),
+    w.po_status,
+    w.priority
+  FROM public.work_items w
+  LEFT JOIN public.workflow_stages s ON s.id = w.current_stage_id
+  LEFT JOIN public.users u ON u.id = COALESCE(w.current_assignee_id, w.owner_id)
+  WHERE
+    -- Everything still open …
+    (w.status NOT IN ('COMPLETED','CANCELLED','REJECTED')
+     AND (
+       COALESCE(w.stage_deadline, w.deadline) <= CURRENT_DATE
+       OR w.status IN ('ON_HOLD','BLOCKED')
+       OR w.updated_at::date = CURRENT_DATE
+     ))
+    -- … plus what actually finished today, so the message carries some good news
+    OR (w.status IN ('COMPLETED','CANCELLED') AND w.updated_at::date = CURRENT_DATE)
+  ORDER BY 1, COALESCE(w.stage_deadline, w.deadline) NULLS LAST, w.name;
+$$;
+
+
+-- ----------------------------------------------------------------------------
+-- The whole digest in one call, for the 6pm cron.
+--
+-- Takes the shared secret rather than a session: this runs from a scheduled
+-- job with nobody signed in. It returns status only — names, stages and dates
+-- — and no file contents, comments or costs, so the blast radius if the secret
+-- leaked is a list of work titles rather than the database.
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.daily_digest(p_secret TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_expected TEXT;
+  v_result   JSONB;
+BEGIN
+  SELECT value INTO v_expected FROM public.app_settings WHERE key = 'digest_secret';
+
+  -- md5() is built in; pgcrypto's digest() lives in the extensions schema and
+  -- would not resolve under SET search_path = public. Hashing both sides keeps
+  -- the comparison length-independent, which is all this needs: the secret
+  -- travels over TLS to a cron endpoint, not through a user-facing form.
+  IF v_expected IS NULL
+     OR md5(COALESCE(p_secret, '')) IS DISTINCT FROM md5(v_expected)
+  THEN
+    RAISE EXCEPTION 'Not authorised' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT jsonb_build_object(
+    'generated_at', NOW(),
+    'date',         CURRENT_DATE,
+    'totals', (
+      SELECT jsonb_object_agg(bucket, n)
+      FROM (SELECT bucket, COUNT(*) AS n FROM public.daily_digest_rows() GROUP BY bucket) x
+    ),
+    'items', (
+      SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY r.bucket, r.deadline NULLS LAST), '[]'::jsonb)
+      FROM public.daily_digest_rows() r
+    ),
+    'recipients', (
+      SELECT COALESCE(jsonb_agg(jsonb_build_object(
+               'user_id', u.id, 'name', u.full_name, 'phone', u.phone,
+               'email', u.email)), '[]'::jsonb)
+      FROM public.users u
+      WHERE u.is_active
+        AND u.email NOT LIKE '%@placeholder.invalid'
+    )
+  ) INTO v_result;
+
+  RETURN v_result;
+END;
+$$;
+
+-- `anon` is what an unauthenticated cron request arrives as. The secret check
+-- inside the function is the actual gate; without it this grant would expose
+-- the digest to the internet.
+GRANT EXECUTE ON FUNCTION public.daily_digest(TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.daily_digest_rows() TO authenticated;
+
+
+-- ----------------------------------------------------------------------------
+-- Record that the digest went out, and give each person an in-app copy.
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.record_digest_sent(p_secret TEXT, p_summary TEXT)
+RETURNS INT
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_expected TEXT;
+  v_count    INT;
+BEGIN
+  SELECT value INTO v_expected FROM public.app_settings WHERE key = 'digest_secret';
+  IF v_expected IS NULL OR p_secret IS DISTINCT FROM v_expected THEN
+    RAISE EXCEPTION 'Not authorised' USING ERRCODE = '42501';
+  END IF;
+
+  INSERT INTO public.notifications (recipient_id, type, subject, body, action_url, channel)
+  SELECT u.id, 'DAILY_DIGEST',
+         'End of day — ' || to_char(CURRENT_DATE, 'DD Mon'),
+         p_summary, '/work?filter=active', 'IN_APP'
+  FROM public.users u
+  WHERE u.is_active AND u.email NOT LIKE '%@placeholder.invalid';
+
+  GET DIAGNOSTICS v_count = ROW_COUNT;
+  RETURN v_count;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.record_digest_sent(TEXT, TEXT) TO anon, authenticated;
+
+-- ####### 0019_work_item_journey.sql #######
+
+-- ============================================================================
+-- 0019_work_item_journey.sql — the whole journey of a task, with names on it
+-- ============================================================================
+-- Stated by the team lead:
+--   "for each task show the stages in pill format and entire journey should be
+--    visible and name written on it that who is taking care of it"
+--
+-- The stepper already drew pills, but it drew STAGES — "Design", "Content
+-- review" — and a stage name does not answer the question anybody actually
+-- asks, which is "who has it, and who had it before that". The person was
+-- shown once, for the current stage only, in a field lower down the page.
+--
+-- This view answers it for every stage at once. The tricky part is that
+-- "who is taking care of it" means three different things depending on where
+-- the stage sits:
+--
+--   already passed  — who ACTUALLY did it. Not who was supposed to: work gets
+--                     reassigned, and the history should say what happened.
+--   current         — who holds it right now.
+--   still to come   — who it WILL route to, resolved the same way the engine
+--                     will resolve it when it gets there (approval_authorities
+--                     for a gate), so the pill and the future agree.
+--
+-- Where no person can be named — a future stage that routes by role rather
+-- than to a registered approver — the view returns the ROLE and leaves the
+-- name NULL, so the UI can say "a designer" rather than inventing a person.
+--
+-- Idempotent. Safe to run twice.
+-- ============================================================================
+
+CREATE OR REPLACE VIEW public.v_work_item_journey
+WITH (security_invoker = TRUE) AS
+SELECT
+  w.id                       AS work_item_id,
+  s.id                       AS stage_id,
+  s.name                     AS stage_name,
+  s.stage_order,
+  s.track,
+  s.requires_approval,
+  s.is_terminal,
+
+  -- Where this stage sits relative to the work item's position.
+  CASE
+    WHEN cur.stage_order IS NULL              THEN 'upcoming'
+    WHEN s.stage_order  <  cur.stage_order    THEN 'done'
+    WHEN s.stage_order  =  cur.stage_order    THEN 'current'
+    ELSE 'upcoming'
+  END                        AS state,
+
+  -- Who is taking care of it.
+  COALESCE(
+    -- Passed: whoever actually submitted or approved at this stage. Approvals
+    -- first, because on a gate the approver's verdict is the event that
+    -- mattered; the submission into the gate belongs to the stage before.
+    approver.full_name,
+    submitter.full_name,
+    -- Current: the person holding it now.
+    CASE WHEN s.stage_order = cur.stage_order
+         THEN COALESCE(assignee.full_name, owner.full_name, w.pending_with_label)
+    END,
+    -- Upcoming gate: whoever the engine will route to when it arrives.
+    gate_approver.full_name
+  )                          AS person_name,
+
+  COALESCE(approver.id, submitter.id,
+           CASE WHEN s.stage_order = cur.stage_order
+                THEN COALESCE(assignee.id, owner.id) END,
+           gate_approver.id) AS person_id,
+
+  -- The fallback when nobody can be named: what KIND of person holds it.
+  r.name                     AS role_name,
+
+  -- When it happened, for the tooltip on a completed pill.
+  COALESCE(appr.decided_at, sub.submitted_at) AS acted_at
+
+FROM public.work_items w
+JOIN public.workflow_stages s
+  ON s.workflow_id = w.workflow_id
+LEFT JOIN public.workflow_stages cur
+  ON cur.id = w.current_stage_id
+LEFT JOIN public.roles r
+  ON r.id = s.expected_role_id
+
+-- The most recent approval given at this stage, for this item.
+LEFT JOIN LATERAL (
+  SELECT a.approver_id, a.decided_at
+  FROM public.approvals a
+  WHERE a.work_item_id = w.id AND a.stage_id = s.id
+  ORDER BY a.decided_at DESC
+  LIMIT 1
+) appr ON TRUE
+LEFT JOIN public.users approver ON approver.id = appr.approver_id
+
+-- The most recent submission made from this stage, for this item.
+LEFT JOIN LATERAL (
+  SELECT sm.submitted_by, sm.submitted_at
+  FROM public.submissions sm
+  WHERE sm.work_item_id = w.id AND sm.stage_id = s.id
+  ORDER BY sm.submitted_at DESC
+  LIMIT 1
+) sub ON TRUE
+LEFT JOIN public.users submitter ON submitter.id = sub.submitted_by
+
+LEFT JOIN public.users assignee ON assignee.id = w.current_assignee_id
+LEFT JOIN public.users owner    ON owner.id    = w.owner_id
+
+-- Who a future approval gate will route to. Lowest active level wins, which is
+-- the same rule resolve_approver() uses, so the pill does not promise one
+-- person and the engine then pick another.
+LEFT JOIN LATERAL (
+  SELECT u.id, u.full_name
+  FROM public.approval_authorities aa
+  JOIN public.users u ON u.id = aa.approver_id
+  WHERE aa.is_active
+    AND s.requires_approval
+    AND aa.work_category = s.approval_category
+  ORDER BY aa.approval_level, aa.created_at
+  LIMIT 1
+) gate_approver ON TRUE
+
+-- Procurement stages belong to the parallel rail (0016) and are drawn
+-- separately; on work that needs no PO they are not part of the journey at all.
+WHERE s.track = 'MAIN' OR w.po_required;
+
+GRANT SELECT ON public.v_work_item_journey TO authenticated;
+
+COMMENT ON VIEW public.v_work_item_journey IS
+  'One row per stage per work item: where it sits, and who is taking care of
+   it — the person who actually did it for passed stages, the current holder
+   for the current one, and the person the engine will route to for stages
+   still to come.';
