@@ -1,10 +1,11 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
-import { StatusBadge, PriorityBadge, OverdueBadge, StageBadge } from '@/components/Badges';
+import { StatusBadge, PriorityBadge, OverdueBadge } from '@/components/Badges';
 import { formatDate, formatDaysRemaining, DASH } from '@/lib/format';
 import {
   FILTERS, PRIMARY_FILTERS, isFilterKey, applyFilter, applyOwnerFilter, type FilterKey,
 } from '@/lib/workflow/filters';
+import { JourneySummary, type JourneyStage } from '@/components/JourneyPills';
 import type { WorkItemRow } from '@/types/work';
 
 export const dynamic = 'force-dynamic';
@@ -27,6 +28,22 @@ export default async function WorkListPage({
   const { data, error } = await query;
   // applyFilter works on an untyped builder, so the row type is restored here.
   const rows = (data ?? []) as WorkItemRow[];
+
+  // One query for every row's journey rather than one per row. The list is
+  // capped at 200 items above, so this stays a single bounded fetch.
+  const journeys = new Map<string, JourneyStage[]>();
+  if (rows.length) {
+    const { data: steps } = await supabase
+      .from('v_work_item_journey')
+      .select('work_item_id, stage_id, stage_name, stage_order, track, requires_approval, is_terminal, state, person_name, person_id, role_name, acted_at')
+      .in('work_item_id', rows.map((r) => r.id));
+
+    for (const step of (steps ?? []) as (JourneyStage & { work_item_id: string })[]) {
+      const list = journeys.get(step.work_item_id);
+      if (list) list.push(step);
+      else journeys.set(step.work_item_id, [step]);
+    }
+  }
 
   return (
     <div>
@@ -89,7 +106,7 @@ export default async function WorkListPage({
             <thead className="bg-slate-50">
               <tr className="text-left text-xs font-medium uppercase tracking-wide text-black">
                 <th scope="col" className="px-4 py-3">Work</th>
-                <th scope="col" className="px-4 py-3">Stage</th>
+                <th scope="col" className="px-4 py-3">Journey</th>
                 <th scope="col" className="px-4 py-3">Owner</th>
                 <th scope="col" className="px-4 py-3">Pending With</th>
                 <th scope="col" className="px-4 py-3">Deadline</th>
@@ -110,7 +127,9 @@ export default async function WorkListPage({
                       <div className="mt-0.5 text-xs text-black">{w.job_name}</div>
                     )}
                   </td>
-                  <td className="px-4 py-3"><StageBadge stage={w.stage_name} /></td>
+                  <td className="px-4 py-3 text-black">
+                    <JourneySummary stages={journeys.get(w.id) ?? []} />
+                  </td>
                   <td className="px-4 py-3 text-black">{w.owner_name ?? DASH}</td>
                   <td className="px-4 py-3 text-black">
                     <span className={w.pending_with === 'unassigned' || w.pending_with === 'unknown'
