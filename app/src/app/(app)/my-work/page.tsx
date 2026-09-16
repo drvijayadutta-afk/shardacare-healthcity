@@ -86,7 +86,7 @@ export default async function MyWorkPage() {
               </p>
               <div className="mt-4 flex flex-wrap justify-center gap-2">
                 <Link href="/work?filter=all"
-                  className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">
+                  className="rounded-md bg-brand-navy px-3 py-2 text-sm font-medium text-white hover:bg-brand-navy-dark">
                   See all {totalWork} items
                 </Link>
                 <Link href="/work?filter=unassigned"

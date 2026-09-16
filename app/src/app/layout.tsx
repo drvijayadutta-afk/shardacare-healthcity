@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Workflow Control Tower",
+  title: "ShardaCare HealthCity — Control Tower",
   description: "Marketing workflow allocation and handoff",
 };
 

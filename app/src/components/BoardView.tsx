@@ -93,7 +93,7 @@ export function BoardView({ columns }: { columns: BoardColumn[] }) {
             onDrop={(e) => { e.preventDefault(); handleDrop(col.key, col.stageOrder); }}
             className={`flex w-72 shrink-0 flex-col rounded-lg border p-2 transition ${
               overStage === col.key
-                ? 'border-slate-900 bg-slate-100 ring-2 ring-slate-900/10'
+                ? 'border-brand-navy bg-slate-100 ring-2 ring-brand-navy/10'
                 : 'border-slate-200 bg-slate-100/60'
             }`}
           >
@@ -187,7 +187,7 @@ export function BoardView({ columns }: { columns: BoardColumn[] }) {
                 id="board-note" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)}
                 placeholder={pending.direction === 'backward' ? 'What needs to change?' : ''}
                 className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm
-                           focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                           focus:border-brand-navy focus:outline-none focus:ring-1 focus:ring-brand-navy"
               />
             </div>
 
@@ -211,8 +211,8 @@ export function BoardView({ columns }: { columns: BoardColumn[] }) {
                   else if (card.canApprove) run(() => approveWorkItem(card.id, notes));
                   else run(() => submitForNextStage(card.id, notes));
                 }}
-                className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white
-                           hover:bg-slate-800 disabled:opacity-50">
+                className="rounded-md bg-brand-navy px-3 py-2 text-sm font-medium text-white
+                           hover:bg-brand-navy-dark disabled:opacity-50">
                 {busy ? 'Working…' : 'Confirm'}
               </button>
             </div>

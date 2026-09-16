@@ -17,7 +17,7 @@ function Select({ label, hint, value, onChange, people, role }: {
       <select
         value={value} onChange={(e) => onChange(e.target.value)}
         className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm
-                   focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                   focus:border-brand-navy focus:outline-none focus:ring-1 focus:ring-brand-navy"
       >
         <option value="">— not decided yet —</option>
         {eligible.map((p) => <option key={p.id} value={p.id}>{p.full_name}</option>)}
@@ -44,7 +44,7 @@ export function NewWorkForm({ people }: { people: Person[] }) {
 
   const field =
     'mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm ' +
-    'focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900';
+    'focus:border-brand-navy focus:outline-none focus:ring-1 focus:ring-brand-navy';
 
   return (
     <form
@@ -149,8 +149,8 @@ export function NewWorkForm({ people }: { people: Person[] }) {
 
       <div className="flex gap-2">
         <button type="submit" disabled={pending || !f.title.trim()}
-          className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white
-                     hover:bg-slate-800 disabled:opacity-50">
+          className="rounded-md bg-brand-navy px-4 py-2 text-sm font-medium text-white
+                     hover:bg-brand-navy-dark disabled:opacity-50">
           {pending ? 'Creating…' : 'Create work'}
         </button>
         <button type="button" onClick={() => router.back()} disabled={pending}

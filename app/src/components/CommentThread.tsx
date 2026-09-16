@@ -73,13 +73,13 @@ function Composer({
         placeholder={placeholder}
         aria-label={placeholder}
         className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm
-                   focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                   focus:border-brand-navy focus:outline-none focus:ring-1 focus:ring-brand-navy"
       />
       {error && <p role="alert" className="mt-1 text-sm text-red-700">{error}</p>}
       <div className="mt-1.5 flex gap-2">
         <button
           type="submit" disabled={pending || !body.trim()}
-          className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+          className="rounded-md bg-brand-navy px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-navy-dark disabled:opacity-50"
         >
           {pending ? 'Saving…' : submitLabel}
         </button>

@@ -121,7 +121,7 @@ export function AdminControls({
                 <select
                   id="admin-person" value={personId} onChange={(e) => setPersonId(e.target.value)}
                   className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm
-                             focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900">
+                             focus:border-brand-navy focus:outline-none focus:ring-1 focus:ring-brand-navy">
                   <option value="">— choose —</option>
                   {people.map((p) => <option key={p.id} value={p.id}>{p.full_name}</option>)}
                 </select>
@@ -136,7 +136,7 @@ export function AdminControls({
               <textarea
                 id="admin-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)}
                 className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm
-                           focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                           focus:border-brand-navy focus:outline-none focus:ring-1 focus:ring-brand-navy"
               />
             </div>
 
@@ -160,7 +160,7 @@ export function AdminControls({
                   else if (currentTaskId) run(() => removeTask(currentTaskId, note));
                 }}
                 className={`rounded-md px-3 py-2 text-sm font-medium text-white disabled:opacity-50 ${
-                  dialog === 'delete' ? 'bg-red-600 hover:bg-red-700' : 'bg-slate-900 hover:bg-slate-800'}`}>
+                  dialog === 'delete' ? 'bg-red-600 hover:bg-red-700' : 'bg-brand-navy hover:bg-brand-navy-dark'}`}>
                 {pending ? 'Working…'
                   : dialog === 'add' ? 'Add task'
                   : dialog === 'delete' ? 'Delete task' : 'Reassign'}

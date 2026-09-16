@@ -118,7 +118,7 @@ function Pill({ s }: { s: JourneyStage }) {
 
   const shell =
     s.state === 'current'
-      ? 'bg-slate-900 text-white ring-slate-900'
+      ? 'bg-brand-navy text-white ring-brand-navy'
       : s.state === 'done'
         ? 'bg-emerald-50 text-emerald-900 ring-emerald-200'
         : 'bg-white text-black ring-slate-200';
@@ -224,7 +224,7 @@ export function JourneySummary({ stages }: { stages: JourneyStage[] }) {
   return (
     <span className="inline-flex flex-wrap items-center gap-1.5 text-xs">
       <span className="text-black">{doneCount}/{main.length}</span>
-      <span className="inline-flex items-center gap-1 rounded-full bg-slate-900 py-0.5 pl-2 pr-2.5 text-white">
+      <span className="inline-flex items-center gap-1 rounded-full bg-brand-navy py-0.5 pl-2 pr-2.5 text-white">
         <span className="font-medium">{stageLabel(current.stage_name)}</span>
         {whoLabel(current) && (
           <span className="text-white/70">{whoLabel(current)!.text}</span>

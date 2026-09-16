@@ -3,6 +3,7 @@
 import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { Logo } from '@/components/Logo';
 
 function LoginForm() {
   const router = useRouter();
@@ -40,7 +41,7 @@ function LoginForm() {
           id="email" type="email" required autoComplete="email"
           value={email} onChange={(e) => setEmail(e.target.value)}
           className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm
-                     focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                     focus:border-brand-navy focus:outline-none focus:ring-1 focus:ring-brand-navy"
         />
       </div>
       <div>
@@ -51,7 +52,7 @@ function LoginForm() {
           id="password" type="password" required autoComplete="current-password"
           value={password} onChange={(e) => setPassword(e.target.value)}
           className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm
-                     focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                     focus:border-brand-navy focus:outline-none focus:ring-1 focus:ring-brand-navy"
         />
       </div>
 
@@ -63,8 +64,8 @@ function LoginForm() {
 
       <button
         type="submit" disabled={busy}
-        className="w-full rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white
-                   hover:bg-slate-800 disabled:opacity-50"
+        className="w-full rounded-md bg-brand-navy px-4 py-2 text-sm font-medium text-white
+                   hover:bg-brand-navy-dark disabled:opacity-50"
       >
         {busy ? 'Signing in…' : 'Sign in'}
       </button>
@@ -76,7 +77,8 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
       <div className="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="text-lg font-semibold text-black">Workflow Control Tower</h1>
+        <Logo className="mb-4" />
+        <h1 className="text-lg font-semibold text-black">Control Tower</h1>
         <p className="mt-1 mb-6 text-sm text-black">Sign in to see your work.</p>
         <Suspense fallback={<p className="text-sm text-black">Loading…</p>}>
           <LoginForm />

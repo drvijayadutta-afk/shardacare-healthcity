@@ -33,13 +33,13 @@ export function CopyDigest({ text }: { text: string }) {
         onFocus={(e) => e.currentTarget.select()}
         className="w-full resize-y rounded-md border border-slate-300 bg-slate-50 px-3 py-2
                    font-mono text-xs leading-relaxed text-black
-                   focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                   focus:border-brand-navy focus:outline-none focus:ring-1 focus:ring-brand-navy"
       />
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={copy}
-          className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
+          className="rounded-md bg-brand-navy px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-navy-dark"
         >
           Copy for WhatsApp
         </button>

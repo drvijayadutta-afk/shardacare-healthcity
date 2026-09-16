@@ -135,7 +135,7 @@ export function TagEditor({
               aria-label="Add a tag"
               maxLength={40}
               className="w-32 rounded-full border border-dashed border-slate-300 px-2.5 py-1 text-xs
-                         focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                         focus:border-brand-navy focus:outline-none focus:ring-1 focus:ring-brand-navy"
             />
 
             {showOptions && filtered.length > 0 && (

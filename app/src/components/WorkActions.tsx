@@ -82,8 +82,8 @@ export function WorkActions({ workItemId, canSubmit, canApprove, canHold, isOnHo
         {canSubmit && !canApprove && (
           <button
             onClick={() => setDialog('submit')} disabled={pending}
-            className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white
-                       hover:bg-slate-800 disabled:opacity-50">
+            className="rounded-md bg-brand-navy px-3 py-2 text-sm font-medium text-white
+                       hover:bg-brand-navy-dark disabled:opacity-50">
             Submit for Next Stage
           </button>
         )}
@@ -155,7 +155,7 @@ export function WorkActions({ workItemId, canSubmit, canApprove, canHold, isOnHo
                   ? 'What needs to change?'
                   : dialog === 'hold' ? 'What is blocking this?' : ''}
                 className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm
-                           focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                           focus:border-brand-navy focus:outline-none focus:ring-1 focus:ring-brand-navy"
               />
             </div>
 
@@ -179,8 +179,8 @@ export function WorkActions({ workItemId, canSubmit, canApprove, canHold, isOnHo
                   if (dialog === 'changes') run(() => requestChanges(workItemId, text));
                   if (dialog === 'hold')    run(() => putOnHold(workItemId, text, blocker));
                 }}
-                className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white
-                           hover:bg-slate-800 disabled:opacity-50">
+                className="rounded-md bg-brand-navy px-3 py-2 text-sm font-medium text-white
+                           hover:bg-brand-navy-dark disabled:opacity-50">
                 {pending ? 'Working…' : 'Confirm'}
               </button>
             </div>

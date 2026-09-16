@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { getCurrentUser, canViewAllWork } from '@/lib/auth/roles';
+import { getCurrentUser, canViewAllWork, canCreateWork } from '@/lib/auth/roles';
 import { StatusBadge, PriorityBadge, StageBadge } from '@/components/Badges';
 import { TeamRoster, type RosterPerson } from '@/components/TeamRoster';
 import { formatDate, formatDaysRemaining, humanise, actionLabel, DASH } from '@/lib/format';
@@ -153,10 +153,12 @@ export default async function ControlTowerPage() {
               Every number is a live count. Click one to open exactly those items.
             </p>
           </div>
-          <Link href="/work/new"
-            className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">
-            Add work
-          </Link>
+          {canCreateWork(user) && (
+            <Link href="/work/new"
+              className="rounded-md bg-brand-navy px-3 py-2 text-sm font-medium text-white hover:bg-brand-navy-dark">
+              Add work
+            </Link>
+          )}
         </div>
       </div>
 

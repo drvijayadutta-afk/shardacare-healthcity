@@ -167,7 +167,7 @@ export function PoTrack({
               <button
                 type="button" disabled={pending}
                 onClick={() => run(() => openPoTrack(workItemId, amount ? Number(amount) : null))}
-                className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                className="rounded-md bg-brand-navy px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-navy-dark disabled:opacity-50"
               >
                 Raise purchase order
               </button>
@@ -176,7 +176,7 @@ export function PoTrack({
               <button
                 type="button" disabled={pending}
                 onClick={() => run(() => advancePo(workItemId, next.to))}
-                className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                className="rounded-md bg-brand-navy px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-navy-dark disabled:opacity-50"
               >
                 {next.label}
               </button>
@@ -220,16 +220,16 @@ export function PoTrack({
             <input
               value={vendor} onChange={(e) => setVendor(e.target.value)}
               placeholder="Vendor name" aria-label="Vendor name"
-              className="rounded-md border border-slate-300 px-2.5 py-1.5 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+              className="rounded-md border border-slate-300 px-2.5 py-1.5 text-sm focus:border-brand-navy focus:outline-none focus:ring-1 focus:ring-brand-navy"
             />
             <input
               value={amount} onChange={(e) => setAmount(e.target.value)}
               inputMode="decimal" placeholder="Amount (INR)" aria-label="Amount in rupees"
-              className="rounded-md border border-slate-300 px-2.5 py-1.5 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+              className="rounded-md border border-slate-300 px-2.5 py-1.5 text-sm focus:border-brand-navy focus:outline-none focus:ring-1 focus:ring-brand-navy"
             />
             <button
               type="submit" disabled={pending}
-              className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+              className="rounded-md bg-brand-navy px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-navy-dark disabled:opacity-50"
             >
               Save
             </button>

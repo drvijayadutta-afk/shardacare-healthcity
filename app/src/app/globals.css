@@ -23,11 +23,33 @@
 
   --background: #ffffff;
   --foreground: #000000;
+
+  /*
+   * ShardaCare HealthCity brand colours, sampled from the logo (navy
+   * wordmark, blue/coral/orange gradient mark, teal accent in the
+   * HEALTHCITY badge). These are accents only — buttons, active nav, focus
+   * rings, the header — never body text, which stays black per the earlier
+   * "black throughout" change. Semantic status colours (red overdue, amber
+   * pending, emerald complete) are untouched; they carry meaning the brand
+   * palette must not compete with.
+   *
+   * Sampled by eye from the logo image, not colour-picked from the file —
+   * there is no logo file in this repo yet (see Logo.tsx). Nudge these once
+   * the real asset is in place.
+   */
+  --brand-navy: #2b3468;
+  --brand-navy-dark: #1f2650;
+  --brand-blue: #2f8fd1;
+  --brand-teal: #2ec4c6;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-brand-navy: var(--brand-navy);
+  --color-brand-navy-dark: var(--brand-navy-dark);
+  --color-brand-blue: var(--brand-blue);
+  --color-brand-teal: var(--brand-teal);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

@@ -68,7 +68,7 @@ export default async function WorkListPage({
             key={k} href={`/work?filter=${k}`}
             className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${
               k === filter
-                ? 'bg-slate-900 text-white ring-slate-900'
+                ? 'bg-brand-navy text-white ring-brand-navy'
                 : 'bg-white text-black ring-slate-200 hover:bg-slate-50'}`}>
             {FILTERS[k]}
           </Link>

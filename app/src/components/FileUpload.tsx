@@ -106,7 +106,7 @@ export function FileUpload({ workItemId }: { workItemId: string }) {
           handleFiles(e.dataTransfer.files);
         }}
         className={`rounded-lg border-2 border-dashed p-4 text-center transition-colors ${
-          dragging ? 'border-slate-900 bg-slate-50' : 'border-slate-200'
+          dragging ? 'border-brand-navy bg-slate-50' : 'border-slate-200'
         }`}
       >
         <p className="text-sm text-black">
