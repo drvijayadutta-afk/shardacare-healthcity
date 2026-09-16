@@ -58,6 +58,7 @@ psql -f app/supabase/testing/02_workflow_test.sql  # full 11-stage walk, both PO
 psql -f app/supabase/testing/03_sharda_workflow_test.sql  # the real team, by name
 psql -f app/supabase/testing/04_admin_controls_test.sql  # add/reassign/delete-task role gates
 psql -f app/supabase/testing/05_permissions_and_po_test.sql  # status control, parallel PO, tags, creative chain
+psql -f app/supabase/testing/06_job_creation_test.sql  # only ADMIN may create jobs/work items
 ```
 
 Run against the same database, in this order — 02 seeds and restores approval

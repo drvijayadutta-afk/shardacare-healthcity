@@ -1,16 +1,16 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { getCurrentUser, canViewAllWork } from '@/lib/auth/roles';
+import { getCurrentUser, canCreateWork } from '@/lib/auth/roles';
 import { NewWorkForm, type Person } from '@/components/NewWorkForm';
 
 export const dynamic = 'force-dynamic';
 
 export default async function NewWorkPage() {
   const user = await getCurrentUser();
-  // Matches the RLS policy on work_items INSERT, so the form is not offered to
-  // someone the database would refuse.
-  if (!canViewAllWork(user)) redirect('/my-work');
+  // Matches the RLS policy on work_items/jobs INSERT (0020), so the form is
+  // not offered to someone the database would refuse.
+  if (!canCreateWork(user)) redirect('/my-work');
 
   const supabase = await createClient();
   const { data } = await supabase

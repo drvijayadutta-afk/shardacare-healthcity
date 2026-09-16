@@ -86,3 +86,14 @@ export function hasPermission(user: CurrentUser | null, permission: string): boo
 export function canViewAllWork(user: CurrentUser | null): boolean {
   return hasRole(user, 'ADMIN', 'WORKFLOW_MANAGER', 'COORDINATOR');
 }
+
+/**
+ * Can this user start new work? Deliberately narrower than canViewAllWork
+ * (0020) — a workflow manager or coordinator still sees the Control Tower and
+ * Board, reassigns, approves, but does not open new jobs. Matches
+ * work_items_insert / jobs_insert exactly, so the button is never offered
+ * where the database would refuse it.
+ */
+export function canCreateWork(user: CurrentUser | null): boolean {
+  return hasRole(user, 'ADMIN');
+}
