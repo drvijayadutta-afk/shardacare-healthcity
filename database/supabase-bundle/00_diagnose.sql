@@ -11,7 +11,7 @@ SELECT
   CASE WHEN ok THEN 'OK' ELSE 'ACTION NEEDED' END AS status,
   fix
 FROM (
-  SELECT 1 AS n, '1. Schema applied' AS step,
+  SELECT 1 AS n, '1. Schema applied (base, up to migration 0012)' AS step,
     (SELECT COUNT(*)::text FROM information_schema.tables
       WHERE table_schema='public' AND table_type='BASE TABLE') || ' tables' AS result,
     (SELECT COUNT(*) FROM information_schema.tables
@@ -56,6 +56,63 @@ FROM (
     (SELECT COUNT(*)::text FROM public.tasks WHERE closed_at IS NULL) || ' open tasks',
     TRUE,   -- zero is EXPECTED, not a fault
     'Zero is correct after import: the source document named no assignee for 31 of 38 items. My Work shows only YOUR tasks; use the Control Tower to see everything'
+
+  -- ---- Everything below is migrations 0013-0020. If step 1 looks fine but
+  -- these show ACTION NEEDED, you are on an older schema snapshot: paste the
+  -- CURRENT database/supabase-bundle/01_schema.sql in full and re-run it.
+  -- It is idempotent, so re-running the whole thing is always safe.
+  UNION ALL SELECT 9, '9. Admin task controls (0013)',
+    CASE WHEN EXISTS (SELECT 1 FROM information_schema.routines
+      WHERE routine_schema='public' AND routine_name='reassign_work_item')
+      THEN 'present' ELSE 'missing' END,
+    EXISTS (SELECT 1 FROM information_schema.routines
+      WHERE routine_schema='public' AND routine_name='reassign_work_item'),
+    'Reassign/add/delete-task on Work Detail need this. Re-paste and re-run 01_schema.sql'
+
+  UNION ALL SELECT 10, '10. Attachments, tags, status control (0015)',
+    (SELECT COUNT(*)::text FROM information_schema.tables
+      WHERE table_schema='public' AND table_name IN ('tags','work_item_tags')) || ' of 2 tables present, ' ||
+    CASE WHEN EXISTS (SELECT 1 FROM storage.buckets WHERE id='work-files')
+      THEN 'bucket present' ELSE 'bucket MISSING' END,
+    (SELECT COUNT(*) FROM information_schema.tables
+      WHERE table_schema='public' AND table_name IN ('tags','work_item_tags')) = 2
+      AND EXISTS (SELECT 1 FROM storage.buckets WHERE id='work-files'),
+    'Tags, file uploads, comment threads and "only Vijaya/Nirmal move stages" all need this. Re-paste and re-run 01_schema.sql'
+
+  UNION ALL SELECT 11, '11. Parallel PO track (0016)',
+    -- po_request_id itself dates back to 0004 (always present) -- advance_po_track
+    -- and the track column are what 0016 actually adds, so those are what
+    -- distinguishes "PO runs in parallel" from the older detour-style flow.
+    CASE WHEN EXISTS (SELECT 1 FROM information_schema.routines
+      WHERE routine_schema='public' AND routine_name='advance_po_track')
+      THEN 'present' ELSE 'missing' END,
+    EXISTS (SELECT 1 FROM information_schema.routines
+      WHERE routine_schema='public' AND routine_name='advance_po_track')
+      AND EXISTS (SELECT 1 FROM information_schema.columns
+      WHERE table_schema='public' AND table_name='workflow_stages' AND column_name='track'),
+    'PO tracking on Work Detail needs this. Re-paste and re-run 01_schema.sql'
+
+  UNION ALL SELECT 12, '12. Creative chain / CONCEPT stage (0017)',
+    CASE WHEN EXISTS (SELECT 1 FROM public.workflow_stages WHERE name='CONCEPT')
+      THEN 'present' ELSE 'missing' END,
+    EXISTS (SELECT 1 FROM public.workflow_stages WHERE name='CONCEPT'),
+    'Re-paste and re-run 01_schema.sql'
+
+  UNION ALL SELECT 13, '13. Journey view (0019)',
+    CASE WHEN EXISTS (SELECT 1 FROM information_schema.views
+      WHERE table_schema='public' AND table_name='v_work_item_journey')
+      THEN 'present' ELSE 'missing' END,
+    EXISTS (SELECT 1 FROM information_schema.views
+      WHERE table_schema='public' AND table_name='v_work_item_journey'),
+    'The Journey column on the Work list and Work Detail needs this. Re-paste and re-run 01_schema.sql'
+
+  UNION ALL SELECT 14, '14. Job creation restricted to ADMIN (0020)',
+    COALESCE((SELECT with_check FROM pg_policies
+      WHERE schemaname='public' AND tablename='jobs' AND policyname='jobs_insert'), 'policy MISSING'),
+    EXISTS (SELECT 1 FROM pg_policies
+      WHERE schemaname='public' AND tablename='jobs' AND policyname='jobs_insert'
+        AND with_check ILIKE '%ADMIN%' AND with_check NOT ILIKE '%WORKFLOW_MANAGER%'),
+    'If this is missing or still mentions WORKFLOW_MANAGER/COORDINATOR, you are on the schema from before this restriction. Re-paste and re-run 01_schema.sql'
 ) t
 ORDER BY n;
 
