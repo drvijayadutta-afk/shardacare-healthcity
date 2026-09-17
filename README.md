@@ -15,20 +15,24 @@ app/
   src/lib/workflow/         server actions wrapping the handoff functions
   supabase/migrations/      the schema — SOURCE OF TRUTH
   supabase/testing/         SQL test suites (local Postgres, not Supabase)
-  scripts/build-seed.mjs    regenerates the seed from the source job list
+  scripts/build-seed.mjs    regenerates the seed (people only — see below)
 database/
   supabase-bundle/          the migrations concatenated for the Supabase SQL Editor
   SETUP.md                  applying the schema
   DEPLOY.md                 deploying to Vercel
-  SEED_REVIEW.md            every place the source document was unclear
+  SEED_REVIEW.md            why the original job-list import was retired
 ```
 
 ## Getting it running
 
 1. `database/DEPLOY.md` — deployment and environment variables
 2. `database/SETUP.md` — apply the schema and seed to Supabase
-3. `database/SEED_REVIEW.md` — **read before seeding**; it lists 76 flags and two
-   assumptions that change the data if they are wrong
+
+The seed originally imported the 10th Sept job list (30 jobs, 38 work items) —
+that import was retired (`0030_soft_delete_imported_job_list.sql`, soft-deleted
+not hard-deleted) and `build-seed.mjs` no longer emits it. The people named in
+the source document, their role assignments, and the "Imported (unclassified)"
+workflow template are unaffected. See `database/SEED_REVIEW.md`.
 
 Local development:
 
@@ -63,6 +67,7 @@ psql -f app/supabase/testing/07_status_controller_override_test.sql  # controlle
 psql -f app/supabase/testing/08_po_and_audit_rls_test.sql  # PO self-attribution closed, controller PO override, audit trail can't be forged
 psql -f app/supabase/testing/09_work_visible_to_all_test.sql  # everyone can see all work; editing/deleting stays role-gated
 psql -f app/supabase/testing/10_task_control_restricted_test.sql  # only status controllers/admin can add, reassign or delete a task
+psql -f app/supabase/testing/11_job_list_retired_test.sql  # 0030 soft-deletes only joblist:-sourced rows, hand-created work is untouched
 ```
 
 Run against the same database, in this order — 02 seeds and restores approval

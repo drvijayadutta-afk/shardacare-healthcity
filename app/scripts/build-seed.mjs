@@ -30,6 +30,16 @@ const REPO = resolve(HERE, '..', '..');
 
 const lines = JSON.parse(readFileSync(resolve(HERE, 'source_lines.json'), 'utf8'));
 
+// The 30 jobs / 38 work items this script produces from the source document
+// were retired from the live app (0030_soft_delete_imported_job_list.sql,
+// soft-deleted, not hard-deleted -- recoverable). A fresh install should not
+// bring them back. People, their role assignments and the "Imported
+// (unclassified)" workflow template are unaffected by this flag -- several
+// of those people (Anshika, Vidisha, ...) have since been given real
+// discipline roles and are referenced by other things, independent of
+// whether the job list itself exists.
+const EMIT_JOB_LIST_IMPORT = false;
+
 // ---------------------------------------------------------------------------
 // People actually named in the document.
 //
@@ -372,58 +382,59 @@ WHERE w.name='Imported (unclassified)'
 ON CONFLICT DO NOTHING;
 `);
 
-sql.push(`\n-- --- Jobs and work items ---------------------------------------------------`);
-
 let itemCount = 0;
-for (const job of jobs) {
-  const jobTitle = job.title;
-  const jobRef = `joblist:job:${job.idx}`;
-  sql.push(`
+if (EMIT_JOB_LIST_IMPORT) {
+  sql.push(`\n-- --- Jobs and work items ---------------------------------------------------`);
+
+  for (const job of jobs) {
+    const jobTitle = job.title;
+    const jobRef = `joblist:job:${job.idx}`;
+    sql.push(`
 INSERT INTO public.jobs (name, category, description, source_ref)
 VALUES (${q(jobTitle)}, NULL, ${q('Imported verbatim from the 10th Sept job list')}, ${q(jobRef)})
 ON CONFLICT (source_ref) DO NOTHING;`);
 
-  for (const item of job.items) {
-    itemCount++;
+    for (const item of job.items) {
+      itemCount++;
 
-    // Not one line in the source document mentions a purchase order, for any
-    // job. po_required is a NOT NULL boolean and cannot represent "unknown",
-    // so it stays FALSE -- but po_status is set to NOT_ASSESSED rather than
-    // NOT_REQUIRED, which would otherwise assert (falsely) that a PO was
-    // considered and ruled out. Flagged on every row so it surfaces in review
-    // rather than silently defaulting through the column's own DEFAULT.
-    flag(byIdx[item.idx], 'PO_NOT_STATED',
-      'Source does not say whether a purchase order is needed. po_status set to ' +
-      'NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.');
-    const needsReview = flags.some(f => f.idx === item.idx);
-    const reviewNotes = flags.filter(f => f.idx === item.idx)
-      .map(f => `${f.kind}: ${f.detail}`).join(' | ');
+      // Not one line in the source document mentions a purchase order, for any
+      // job. po_required is a NOT NULL boolean and cannot represent "unknown",
+      // so it stays FALSE -- but po_status is set to NOT_ASSESSED rather than
+      // NOT_REQUIRED, which would otherwise assert (falsely) that a PO was
+      // considered and ruled out. Flagged on every row so it surfaces in review
+      // rather than silently defaulting through the column's own DEFAULT.
+      flag(byIdx[item.idx], 'PO_NOT_STATED',
+        'Source does not say whether a purchase order is needed. po_status set to ' +
+        'NOT_ASSESSED, not NOT_REQUIRED -- confirm per item before relying on PO tracking.');
+      const needsReview = flags.some(f => f.idx === item.idx);
+      const reviewNotes = flags.filter(f => f.idx === item.idx)
+        .map(f => `${f.kind}: ${f.detail}`).join(' | ');
 
-    const st = item.status;
-    const stage = st.stageHint || 'IMPORTED';
+      const st = item.status;
+      const stage = st.stageHint || 'IMPORTED';
 
-    // pending_with: the named person when the source names one, else the
-    // literal 'unknown' required by the import rules.
-    let pendingWithName = null;
-    let pendingWithLabel = null;
-    if (st.note === 'approval pending' || st.note === 'sent for approval') {
-      const approverNames = item.approval?.named ?? [];
-      if (approverNames.length) pendingWithName = approverNames[0];
-      else if (item.people.length === 1) pendingWithName = item.people[0];
-      else pendingWithLabel = 'unknown';
-    }
+      // pending_with: the named person when the source names one, else the
+      // literal 'unknown' required by the import rules.
+      let pendingWithName = null;
+      let pendingWithLabel = null;
+      if (st.note === 'approval pending' || st.note === 'sent for approval') {
+        const approverNames = item.approval?.named ?? [];
+        if (approverNames.length) pendingWithName = approverNames[0];
+        else if (item.people.length === 1) pendingWithName = item.people[0];
+        else pendingWithLabel = 'unknown';
+      }
 
-    const itemRef = `joblist:item:${item.idx}`;
+      const itemRef = `joblist:item:${item.idx}`;
 
-    // One person named on the line IS the owner -- that is reading the
-    // document, not guessing. Several names is genuinely ambiguous about who
-    // is accountable, so owner_id stays NULL there and everyone is kept as a
-    // collaborator; the row is already flagged MULTIPLE_PEOPLE for a human to
-    // settle. Without this the dashboard attributes every imported item to
-    // "Unassigned", which understates what the source actually says.
-    const soleOwner = item.people.length === 1 ? item.people[0] : null;
+      // One person named on the line IS the owner -- that is reading the
+      // document, not guessing. Several names is genuinely ambiguous about who
+      // is accountable, so owner_id stays NULL there and everyone is kept as a
+      // collaborator; the row is already flagged MULTIPLE_PEOPLE for a human to
+      // settle. Without this the dashboard attributes every imported item to
+      // "Unassigned", which understates what the source actually says.
+      const soleOwner = item.people.length === 1 ? item.people[0] : null;
 
-    sql.push(`
+      sql.push(`
 WITH j AS (SELECT id FROM public.jobs WHERE source_ref = ${q(jobRef)}),
      w AS (SELECT id FROM public.workflow_templates WHERE name='Imported (unclassified)'),
      s AS (SELECT id FROM public.workflow_stages
@@ -451,19 +462,27 @@ SELECT (SELECT id FROM j), (SELECT id FROM w), (SELECT id FROM s),
        ${q(itemRef)}
 ON CONFLICT (source_ref) DO NOTHING;`);
 
-    // Collaborators — every person named on the line is preserved.
-    // Matched on source_ref, not source_text: two different lines can carry
-    // the same text ("Whatsapp" appears under both Cardiac and Mother & Child).
-    for (const person of item.people) {
-      const role = person === soleOwner ? 'PRIMARY' : 'COLLABORATOR';
-      sql.push(`
+      // Collaborators — every person named on the line is preserved.
+      // Matched on source_ref, not source_text: two different lines can carry
+      // the same text ("Whatsapp" appears under both Cardiac and Mother & Child).
+      for (const person of item.people) {
+        const role = person === soleOwner ? 'PRIMARY' : 'COLLABORATOR';
+        sql.push(`
 INSERT INTO public.work_item_owners (work_item_id, user_id, owner_role)
 SELECT wi.id, u.id, ${q(role)}
 FROM public.work_items wi, public.users u
 WHERE wi.source_ref = ${q(itemRef)} AND u.full_name = ${q(person)}
 ON CONFLICT DO NOTHING;`);
+      }
     }
   }
+} else {
+  sql.push(`
+-- --- Jobs and work items -----------------------------------------------------
+-- Retired: see EMIT_JOB_LIST_IMPORT at the top of build-seed.mjs and
+-- 0030_soft_delete_imported_job_list.sql. This script still parses the
+-- source document (so the people list below is still derived from it), it
+-- just no longer emits jobs/work_items rows.`);
 }
 
 sql.push(`\nCOMMIT;\n`);
@@ -473,6 +492,31 @@ writeFileSync(resolve(REPO, 'database', 'seed.sql'), sql.join('\n'));
 // ---------------------------------------------------------------------------
 // Review report
 // ---------------------------------------------------------------------------
+const md = [];
+
+if (!EMIT_JOB_LIST_IMPORT) {
+  md.push(`# Seed Import — Retired
+
+The job-list import (30 jobs, 38 work items from **Job_list_10th_Sept_3.docx**)
+was retired: soft-deleted from the live database
+(\`0030_soft_delete_imported_job_list.sql\`) and no longer emitted by
+\`scripts/build-seed.mjs\` (\`EMIT_JOB_LIST_IMPORT = false\`), so a fresh
+install of this app won't re-import it.
+
+People named in the document, their role assignments, and the "Imported
+(unclassified)" workflow template are unaffected — this only concerns the
+job/work-item rows themselves.
+
+The full flag-by-flag review this file used to contain is in git history
+(before this change) if it's ever needed again — e.g. \`git log -p --
+database/SEED_REVIEW.md\`.
+`);
+  writeFileSync(resolve(REPO, 'database', 'SEED_REVIEW.md'), md.join('\n'));
+  console.log(`jobs=0 (retired) work_items=0 (retired) people=${allPeople.length}`);
+  console.log('wrote database/seed.sql (people/roles/workflow template only) and database/SEED_REVIEW.md (stub)');
+  process.exit(0);
+}
+
 // Count flagged WORK ITEMS, not flagged source lines. Some flags attach to a
 // parent job line (e.g. the campaign owner-scope note on line 8), which never
 // becomes a work item -- counting line indices overstated the total.
@@ -484,7 +528,6 @@ const flaggedItemCount = jobs
 const byKind = {};
 for (const f of flags) (byKind[f.kind] ??= []).push(f);
 
-const md = [];
 md.push(`# Seed Import — Review Required
 
 Generated by \`scripts/build-seed.mjs\` from **Job_list_10th_Sept_3.docx**.

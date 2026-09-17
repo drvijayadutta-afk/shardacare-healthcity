@@ -18,14 +18,13 @@ for the `auth` schema, which your project already has.
 
 ## 2. Seed — `database/supabase-bundle/02_seed.sql`
 
-Imports the 10th Sept job list: 30 jobs, 38 work items, 17 people.
+Creates the 17 people named in the original 10th Sept job list document,
+their `CREATOR` role, and the "Imported (unclassified)" workflow template.
+The job list's own 30 jobs / 38 work items are **not** imported — that import
+was retired (`0030_soft_delete_imported_job_list.sql` soft-deletes it on an
+already-seeded database; `build-seed.mjs` no longer emits it on a fresh one).
+See `database/SEED_REVIEW.md` for why.
 
-Before running it, read **`database/SEED_REVIEW.md`**. It lists all 76 places
-the source document did not say something, and two assumptions worth
-confirming up front:
-
-- **Year 2026** — the source omits the year on every date except one
-  ("26th Sept 2026"). If that is wrong, every imported deadline is wrong.
 - **Roles** — the document states no roles for anyone, so all 17 people are
   seeded as `CREATOR`. That exists only so RLS can be tested; reassign properly
   before real use.
@@ -95,10 +94,10 @@ SELECT
   (SELECT COUNT(*) FROM work_items WHERE deadline IS NULL)         AS no_deadline;
 ```
 
-Expected: **21 tables · 51 policies · 38 work items · 38 needing review · 20 with no deadline**.
-
-38-of-38 needing review is correct, not a bug: the source is a terse internal
-list, and almost every line omits at least one of owner, deadline or status.
+`work_items`, `needs_review` and `no_deadline` should all read **0** now that
+the job-list import is retired (see step 2) — the seed no longer creates any
+work items. For a fuller check of what actually applied, use
+`database/supabase-bundle/00_diagnose.sql` instead of this ad-hoc query.
 
 ## What is NOT set up yet
 

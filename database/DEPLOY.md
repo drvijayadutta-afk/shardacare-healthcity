@@ -78,8 +78,9 @@ database/   SQL bundle and these docs
 1. Push to the branch Vercel tracks — it builds automatically
 2. Add the two environment variables → Redeploy
 3. Supabase SQL Editor: `database/supabase-bundle/01_schema.sql`
-4. Supabase SQL Editor: `database/supabase-bundle/02_seed.sql` — read
-   `SEED_REVIEW.md` first, it lists two assumptions that change the data if wrong
+4. Supabase SQL Editor: `database/supabase-bundle/02_seed.sql` — creates the
+   17 people from the original job-list document and their `CREATOR` role;
+   the job list's own jobs/work items are retired, see `SEED_REVIEW.md`
 5. Create a user (Supabase → Authentication → Users → Add user), sign in
 6. Add `approval_authorities` rows so approvals route somewhere. The template is
    at the bottom of `supabase/migrations/0008_default_workflow.sql`
