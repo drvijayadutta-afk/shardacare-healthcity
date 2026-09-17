@@ -114,7 +114,10 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.tasks WHERE id = v_task) THEN
     RAISE EXCEPTION 'FAIL: a role-less stranger deleted a task on work they only have SELECT on';
   END IF;
-  RAISE NOTICE 'PASS  tasks_delete (ADMIN only) is untouched too';
+  -- tasks_delete itself was narrowed further by 0026 (ADMIN-only ->
+  -- STATUS_CONTROLLER/ADMIN) -- unrelated to this file's point, which is
+  -- just that a role-less stranger stays refused either way.
+  RAISE NOTICE 'PASS  a role-less stranger cannot delete a task either';
 
   RAISE NOTICE 'ALL WORK-VISIBLE-TO-ALL TESTS PASSED';
 END

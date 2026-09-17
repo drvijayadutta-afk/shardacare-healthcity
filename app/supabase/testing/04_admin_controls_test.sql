@@ -1,22 +1,27 @@
 -- ============================================================================
 -- LOCAL TEST ONLY — add_task_to_work_item, reassign_work_item and remove_task
--- (0013), and that the role gate on each matches its RLS policy exactly:
--- WORKFLOW_MANAGER may add/reassign but not delete a task; a plain CREATOR
--- may do none of the three.
+-- (0013), and that the role gate on each matches its RLS policy exactly.
+--
+-- Originally WORKFLOW_MANAGER could add/reassign but not delete; 0026
+-- narrowed all three to STATUS_CONTROLLER (Nirmal, Vijaya) plus ADMIN, so
+-- v_controller below now holds STATUS_CONTROLLER, not WORKFLOW_MANAGER —
+-- see 10_task_control_restricted_test.sql for the fuller before/after
+-- coverage (a COORDINATOR refused, a direct INSERT bypass refused, ADMIN
+-- retained). A plain CREATOR still may do none of the three.
 -- ============================================================================
 \set ON_ERROR_STOP on
 SET client_min_messages = NOTICE;
 
 DO $t$
 DECLARE
-  v_admin UUID; v_manager UUID; v_plain UUID; v_target UUID; v_target2 UUID;
+  v_admin UUID; v_controller UUID; v_plain UUID; v_target UUID; v_target2 UUID;
   v_wf UUID; v_job UUID; v_work UUID; v_task UUID; v_task2 UUID; v_res JSONB;
   v_failed BOOLEAN;
 BEGIN
   INSERT INTO auth.users (email, raw_user_meta_data) VALUES
     ('admin-t@t.test','{"full_name":"AdminT"}')     RETURNING id INTO v_admin;
   INSERT INTO auth.users (email, raw_user_meta_data) VALUES
-    ('manager-t@t.test','{"full_name":"ManagerT"}') RETURNING id INTO v_manager;
+    ('controller-t@t.test','{"full_name":"ControllerT"}') RETURNING id INTO v_controller;
   INSERT INTO auth.users (email, raw_user_meta_data) VALUES
     ('plain-t@t.test','{"full_name":"PlainT"}')     RETURNING id INTO v_plain;
   INSERT INTO auth.users (email, raw_user_meta_data) VALUES
@@ -27,7 +32,7 @@ BEGIN
   INSERT INTO public.user_roles (user_id, role_id)
   SELECT v_admin, id FROM public.roles WHERE name='ADMIN';
   INSERT INTO public.user_roles (user_id, role_id)
-  SELECT v_manager, id FROM public.roles WHERE name='WORKFLOW_MANAGER';
+  SELECT v_controller, id FROM public.roles WHERE name='STATUS_CONTROLLER';
   INSERT INTO public.user_roles (user_id, role_id)
   SELECT v_plain, id FROM public.roles WHERE name='CREATOR';
 
@@ -54,9 +59,9 @@ BEGIN
   IF NOT v_failed THEN RAISE EXCEPTION 'FAIL: a CREATOR was allowed to add a task'; END IF;
   RAISE NOTICE 'PASS  a plain user cannot add a task';
 
-  -- ---- A WORKFLOW_MANAGER adding a task to an unassigned item becomes ---
+  -- ---- A STATUS_CONTROLLER adding a task to an unassigned item becomes ---
   -- the official handoff, same as reassign would on an empty item.
-  PERFORM set_config('request.jwt.claim.sub', v_manager::TEXT, TRUE);
+  PERFORM set_config('request.jwt.claim.sub', v_controller::TEXT, TRUE);
   v_res := public.add_task_to_work_item(v_work, v_target, 'first task');
 
   IF (SELECT current_assignee_id FROM public.work_items WHERE id=v_work) <> v_target THEN
@@ -109,8 +114,8 @@ BEGIN
   IF NOT v_failed THEN RAISE EXCEPTION 'FAIL: a CREATOR was allowed to reassign work'; END IF;
   RAISE NOTICE 'PASS  a plain user cannot reassign work';
 
-  -- ---- A WORKFLOW_MANAGER may reassign, moving it off v_target onto v_target2
-  PERFORM set_config('request.jwt.claim.sub', v_manager::TEXT, TRUE);
+  -- ---- A STATUS_CONTROLLER may reassign, moving it off v_target onto v_target2
+  PERFORM set_config('request.jwt.claim.sub', v_controller::TEXT, TRUE);
   v_res := public.reassign_work_item(v_work, v_target2, 'test note');
 
   IF (SELECT current_assignee_id FROM public.work_items WHERE id=v_work) <> v_target2 THEN
@@ -137,7 +142,7 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'FAIL: no REASSIGNED activity log entry (or wrong from_value)';
   END IF;
-  RAISE NOTICE 'PASS  a workflow manager can reassign work off its current holder';
+  RAISE NOTICE 'PASS  a status controller can reassign work off its current holder';
 
   -- ---- A plain CREATOR may not delete a task ---------------------------
   PERFORM set_config('request.jwt.claim.sub', v_plain::TEXT, TRUE);
@@ -149,20 +154,23 @@ BEGIN
     IF SQLSTATE <> '42501' THEN RAISE EXCEPTION 'FAIL: wrong error for unprivileged delete: % %', SQLSTATE, SQLERRM; END IF;
   END;
   IF NOT v_failed THEN RAISE EXCEPTION 'FAIL: a CREATOR was allowed to delete a task'; END IF;
+  RAISE NOTICE 'PASS  a plain user cannot delete a task';
 
-  -- ---- A WORKFLOW_MANAGER (not ADMIN) may not delete a task either -----
-  -- Deliberately narrower than reassign: matches tasks_delete RLS, which is
-  -- ADMIN-only, unlike tasks_update which WORKFLOW_MANAGER also holds.
-  PERFORM set_config('request.jwt.claim.sub', v_manager::TEXT, TRUE);
-  v_failed := FALSE;
+  -- ---- A STATUS_CONTROLLER may ALSO delete a task (0026 unified this with
+  -- add/reassign, replacing the old ADMIN-only rule) -- proven on a
+  -- throwaway task so v_task is left alone for the ADMIN test below.
+  PERFORM set_config('request.jwt.claim.sub', v_controller::TEXT, TRUE);
+  v_res := public.add_task_to_work_item(v_work, v_target, 'throwaway for delete test');
+  DECLARE v_throwaway UUID;
   BEGIN
-    PERFORM public.remove_task(v_task, NULL);
-  EXCEPTION WHEN OTHERS THEN
-    v_failed := TRUE;
-    IF SQLSTATE <> '42501' THEN RAISE EXCEPTION 'FAIL: wrong error for manager delete: % %', SQLSTATE, SQLERRM; END IF;
+    SELECT id INTO v_throwaway FROM public.tasks
+    WHERE work_item_id=v_work AND assignee_id=v_target AND closed_at IS NULL;
+    v_res := public.remove_task(v_throwaway, 'controller cleanup');
+    IF EXISTS (SELECT 1 FROM public.tasks WHERE id=v_throwaway) THEN
+      RAISE EXCEPTION 'FAIL: a STATUS_CONTROLLER''s delete did not remove the task';
+    END IF;
   END;
-  IF NOT v_failed THEN RAISE EXCEPTION 'FAIL: a WORKFLOW_MANAGER (non-admin) was allowed to delete a task'; END IF;
-  RAISE NOTICE 'PASS  only ADMIN can delete a task, not WORKFLOW_MANAGER or CREATOR';
+  RAISE NOTICE 'PASS  a status controller can delete a task (not just ADMIN)';
 
   -- ---- ADMIN deletes the task; the item reverts to honestly unassigned -
   PERFORM set_config('request.jwt.claim.sub', v_admin::TEXT, TRUE);

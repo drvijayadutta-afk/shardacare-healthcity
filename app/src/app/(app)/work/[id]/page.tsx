@@ -107,13 +107,18 @@ export default async function WorkDetailPage({ params }: { params: Promise<{ id:
   const canSubmit  = canChangeStatus && holdsIt && !isFinished && !isOnHold;
   const canHold    = canChangeStatus && holdsIt && !isFinished;
 
-  // Admin override — distinct from canChangeStatus above. That gates the
-  // normal submit/approve/hold flow for whoever holds the work; this is
-  // ADMIN/WORKFLOW_MANAGER's ability to move it off someone else entirely.
-  // Same role check as reassign_work_item / remove_task / add_task_to_work_item
-  // themselves (0013) — this only decides whether the panel renders.
-  const canManage = hasRole(user, 'ADMIN', 'WORKFLOW_MANAGER') && !isFinished && !isOnHold;
-  const canDelete = hasRole(user, 'ADMIN');
+  // Admin override — distinct from the normal submit/approve/hold flow
+  // above (which is for whoever holds the work). This is the ability to
+  // add a task, reassign work off someone else entirely, or delete a task
+  // outright — restricted to exactly the STATUS_CONTROLLER role (Nirmal and
+  // Vijaya) plus ADMIN (0026), reusing the same canChangeStatus computed
+  // above rather than a role list, since that IS the same permission —
+  // "controls the to-do list" and "controls moving work between stages" are
+  // the same reserved capability, not two separate ones. Same check as
+  // reassign_work_item / remove_task / add_task_to_work_item themselves
+  // (0013, narrowed in 0026) — this only decides whether the panel renders.
+  const canManage = canChangeStatus && !isFinished && !isOnHold;
+  const canDelete = canChangeStatus;
 
   let adminPeople: { id: string; full_name: string }[] = [];
   let currentTaskId: string | null = null;

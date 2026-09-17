@@ -56,12 +56,13 @@ psql -f app/supabase/testing/00_auth_shim.sql   # stands in for Supabase's auth 
 psql -f app/supabase/testing/01_smoke_test.sql  # handoff engine, 10 cases
 psql -f app/supabase/testing/02_workflow_test.sql  # full 11-stage walk, both PO branches
 psql -f app/supabase/testing/03_sharda_workflow_test.sql  # the real team, by name
-psql -f app/supabase/testing/04_admin_controls_test.sql  # add/reassign/delete-task role gates
+psql -f app/supabase/testing/04_admin_controls_test.sql  # add/reassign/delete-task role gates (status controller + admin, see 0026)
 psql -f app/supabase/testing/05_permissions_and_po_test.sql  # status control, parallel PO, tags, creative chain
 psql -f app/supabase/testing/06_job_creation_test.sql  # only ADMIN may create jobs/work items
 psql -f app/supabase/testing/07_status_controller_override_test.sql  # controller/admin can act on work that isn't theirs, RLS included
 psql -f app/supabase/testing/08_po_and_audit_rls_test.sql  # PO self-attribution closed, controller PO override, audit trail can't be forged
 psql -f app/supabase/testing/09_work_visible_to_all_test.sql  # everyone can see all work; editing/deleting stays role-gated
+psql -f app/supabase/testing/10_task_control_restricted_test.sql  # only status controllers/admin can add, reassign or delete a task
 ```
 
 Run against the same database, in this order — 02 seeds and restores approval

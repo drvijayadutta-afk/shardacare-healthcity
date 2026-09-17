@@ -9,9 +9,10 @@ export interface AdminPerson { id: string; full_name: string }
 type Dialog = 'add' | 'reassign' | 'delete' | null;
 
 /**
- * An override panel for ADMIN / WORKFLOW_MANAGER, separate from the normal
- * Actions section: everything above is "what the current holder can do with
- * their own work," this is "what a manager can do to someone else's." Kept
+ * An override panel for whoever controls the to-do list — STATUS_CONTROLLER
+ * (Nirmal, Vijaya) plus ADMIN, per 0026 — separate from the normal Actions
+ * section: everything above is "what the current holder can do with their
+ * own work," this is "what a controller can do to someone else's." Kept
  * visually distinct so the two are never confused for the same kind of action.
  */
 export function AdminControls({
@@ -22,7 +23,8 @@ export function AdminControls({
   /** The open task at the current stage, if one exists — null on an unassigned item. */
   currentTaskId: string | null;
   currentAssigneeName: string | null;
-  /** tasks_delete is ADMIN-only; WORKFLOW_MANAGER may reassign but not delete. */
+  /** Same STATUS_CONTROLLER/ADMIN check as adding/reassigning (0026) — passed
+   *  separately only because the parent computes it once and shares it. */
   canDelete: boolean;
 }) {
   const router = useRouter();
