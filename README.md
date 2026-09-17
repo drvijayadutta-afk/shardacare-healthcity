@@ -59,6 +59,7 @@ psql -f app/supabase/testing/03_sharda_workflow_test.sql  # the real team, by na
 psql -f app/supabase/testing/04_admin_controls_test.sql  # add/reassign/delete-task role gates
 psql -f app/supabase/testing/05_permissions_and_po_test.sql  # status control, parallel PO, tags, creative chain
 psql -f app/supabase/testing/06_job_creation_test.sql  # only ADMIN may create jobs/work items
+psql -f app/supabase/testing/07_status_controller_override_test.sql  # controller/admin can act on work that isn't theirs, RLS included
 ```
 
 Run against the same database, in this order — 02 seeds and restores approval

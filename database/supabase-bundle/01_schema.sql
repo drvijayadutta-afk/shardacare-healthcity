@@ -172,6 +172,7 @@ INSERT INTO public.roles (name, description, permissions) VALUES
    '["view_assigned","submit_deliverables"]')
 ON CONFLICT (name) DO NOTHING;
 
+
 -- ####### 0002_workflow.sql #######
 
 -- ============================================================================
@@ -307,6 +308,7 @@ CREATE TABLE IF NOT EXISTS public.stage_sla_config (
 );
 
 CREATE INDEX IF NOT EXISTS idx_stage_sla_stage ON public.stage_sla_config(stage_id);
+
 
 -- ####### 0003_work.sql #######
 
@@ -538,6 +540,7 @@ CREATE INDEX IF NOT EXISTS idx_tasks_due       ON public.tasks(due_date) WHERE c
 CREATE UNIQUE INDEX IF NOT EXISTS idx_tasks_one_open_per_assignee
   ON public.tasks(work_item_id, assignee_id) WHERE closed_at IS NULL;
 
+
 -- ####### 0004_collab.sql #######
 
 -- ============================================================================
@@ -718,6 +721,7 @@ CREATE TABLE IF NOT EXISTS public.notifications (
 CREATE INDEX IF NOT EXISTS idx_notifications_unread
   ON public.notifications(recipient_id, sent_at DESC) WHERE read_at IS NULL;
 
+
 -- ####### 0005_views.sql #######
 
 -- ============================================================================
@@ -856,6 +860,7 @@ FROM public.tasks t
 JOIN public.v_work_items w ON w.id = t.work_item_id
 WHERE t.closed_at IS NULL
   AND t.assignee_id = auth.uid();
+
 
 -- ####### 0006_rls.sql #######
 
@@ -1208,6 +1213,7 @@ REVOKE UPDATE, DELETE ON public.activity_log FROM authenticated;
 REVOKE UPDATE, DELETE ON public.submissions  FROM authenticated;
 -- Approval decisions are a record of what was decided, not a mutable field.
 REVOKE UPDATE, DELETE ON public.approvals    FROM authenticated;
+
 
 -- ####### 0007_handoff.sql #######
 
@@ -2041,6 +2047,7 @@ BEGIN
 END;
 $$;
 
+
 -- ####### 0008_default_workflow.sql #######
 
 -- ============================================================================
@@ -2209,6 +2216,7 @@ ON CONFLICT (workflow_id, from_stage_id, trigger_condition) DO UPDATE
 -- Control Tower as needing an owner.
 -- ----------------------------------------------------------------------------
 
+
 -- ####### 0009_metrics.sql #######
 
 -- ============================================================================
@@ -2344,6 +2352,7 @@ LANGUAGE sql STABLE AS $$
   ORDER BY 2 DESC;
 $$;
 
+
 -- ####### 0010_repair_users_identity.sql #######
 
 -- ============================================================================
@@ -2386,6 +2395,7 @@ BEGIN
     RAISE NOTICE 'Dropped % — public.users no longer requires an auth account.', v_constraint;
   END IF;
 END $$;
+
 
 -- ####### 0011_sharda_team.sql #######
 
@@ -2544,6 +2554,7 @@ WHERE NOT EXISTS (
 -- routes to the lowest active level and one approval clears the gate.
 -- ============================================================================
 
+
 -- ####### 0012_sharda_workflow.sql #######
 
 -- ============================================================================
@@ -2686,6 +2697,7 @@ ON CONFLICT (workflow_id, from_stage_id, trigger_condition) DO UPDATE
 -- No SLAs. No turnaround times were stated, and compute_stage_deadline leaves
 -- the deadline NULL rather than inventing one. To add them:
 --   INSERT INTO public.stage_sla_config (stage_id, priority, sla_days) ...
+
 
 -- ####### 0013_admin_task_controls.sql #######
 
@@ -3019,6 +3031,7 @@ BEGIN
 END;
 $$;
 
+
 -- ####### 0014_po_not_assessed.sql #######
 
 -- ============================================================================
@@ -3053,6 +3066,7 @@ SET po_status = 'NOT_ASSESSED'
 WHERE source_ref IS NOT NULL
   AND po_required = FALSE
   AND po_status = 'NOT_REQUIRED';
+
 
 -- ####### 0015_attachments_tags_status_control.sql #######
 
@@ -3539,6 +3553,7 @@ JOIN public.tags t ON t.id = wit.tag_id;
 
 GRANT SELECT ON public.v_work_item_tags TO authenticated;
 
+
 -- ####### 0016_parallel_po_track.sql #######
 
 -- ============================================================================
@@ -3952,6 +3967,7 @@ UPDATE public.work_items w
    AND prod.workflow_id = cur.workflow_id
    AND prod.name = 'PRODUCTION';
 
+
 -- ####### 0017_creative_chain.sql #######
 
 -- ============================================================================
@@ -4156,6 +4172,7 @@ ON CONFLICT (workflow_id, from_stage_id, trigger_condition) DO UPDATE
   SET to_stage_id = EXCLUDED.to_stage_id,
       description = EXCLUDED.description;
 
+
 -- ####### 0018_daily_digest.sql #######
 
 -- ============================================================================
@@ -4353,6 +4370,7 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.record_digest_sent(TEXT, TEXT) TO anon, authenticated;
 
+
 -- ####### 0019_work_item_journey.sql #######
 
 -- ============================================================================
@@ -4487,6 +4505,7 @@ COMMENT ON VIEW public.v_work_item_journey IS
    for the current one, and the person the engine will route to for stages
    still to come.';
 
+
 -- ####### 0020_restrict_job_creation.sql #######
 
 -- ============================================================================
@@ -4543,3 +4562,507 @@ DROP POLICY IF EXISTS jobs_delete ON public.jobs;
 CREATE POLICY jobs_delete ON public.jobs FOR DELETE TO authenticated
   USING (public.has_role(ARRAY['ADMIN','WORKFLOW_MANAGER','COORDINATOR'])
          OR created_by = auth.uid() OR requester_id = auth.uid());
+
+
+-- ####### 0021_submit_status_controller_override.sql #######
+
+-- ============================================================================
+-- 0021_submit_status_controller_override.sql
+--   Let a STATUS_CONTROLLER (Vijaya, Nirmal) or ADMIN submit_for_next_stage
+--   on work they do not personally hold.
+-- ============================================================================
+-- Idempotent, like every migration before it. Safe to run twice.
+--
+-- 0015 introduced public.can_change_status() and wired it into
+-- enforce_status_change_permission() so that approve_work_item and
+-- request_changes already let a controller act on work that is neither
+-- theirs nor at their gate ("move work that is neither theirs nor at their
+-- gate" is explicitly one of the things 0015 reserves to Vijaya/Nirmal).
+--
+-- submit_for_next_stage was never given the same exception: it has always had
+-- its own, separate ownership guard ("You do not hold this work item",
+-- ERRCODE 42501) that runs before the trigger ever sees the UPDATE, and that
+-- guard has no can_change_status() branch. So even a controller calling
+-- submit_for_next_stage on a card they don't hold was — and, absent this
+-- migration, still is — rejected by that guard alone, regardless of role.
+--
+-- This is the server-side half of the Board fix (see
+-- src/lib/workflow/board.ts's canOverride): the Board now offers the drag to
+-- a controller for cards they don't hold, but that drag calls this exact
+-- function for the "forward, no approval gate" case, so without this change
+-- the drag would succeed in the UI and then fail with "You do not hold this
+-- work item" on drop.
+--
+-- Only the guard clause changes; everything else is byte-for-byte the
+-- function from 0007. p_task then legitimately stays NULL for an override
+-- call — already handled throughout (see "IF v_task.id IS NOT NULL" below),
+-- since PARALLEL/SEQUENTIAL work and the closing of "this person's task" were
+-- always optional depending on whether the actor held a task.
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION public.submit_for_next_stage(
+  p_work_item_id UUID,
+  p_notes        TEXT DEFAULT NULL,
+  p_file_ids     UUID[] DEFAULT NULL
+) RETURNS JSONB LANGUAGE plpgsql AS $$
+DECLARE
+  v_actor          UUID := auth.uid();
+  v_work           public.work_items%ROWTYPE;
+  v_stage          public.workflow_stages%ROWTYPE;
+  v_multi_mode     TEXT;
+  v_task           public.tasks%ROWTYPE;
+  v_trigger        TEXT;
+  v_next_stage_id  UUID;
+  v_next_stage     public.workflow_stages%ROWTYPE;
+  v_transition_found BOOLEAN;
+  v_next_assignee  UUID;
+  v_next_deadline  DATE;
+  v_submission_id  UUID;
+  v_submission_no  INT;
+  v_new_task_id    UUID;
+  v_pending_total  INT;
+  v_missing_files  INT;
+  v_next_status    TEXT;
+  v_action_type    TEXT;
+BEGIN
+  IF v_actor IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated' USING ERRCODE = '28000';
+  END IF;
+
+  -- Lock the row for the duration of the transaction so two people clicking
+  -- Submit at the same moment cannot both advance the stage.
+  SELECT * INTO v_work FROM public.work_items
+  WHERE id = p_work_item_id AND deleted_at IS NULL
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Work item not found' USING ERRCODE = 'P0002';
+  END IF;
+
+  IF v_work.status IN ('COMPLETED','CANCELLED','REJECTED') THEN
+    RAISE EXCEPTION 'Work item is % and cannot be submitted', v_work.status
+      USING ERRCODE = '22023';
+  END IF;
+
+  IF v_work.status = 'ON_HOLD' THEN
+    RAISE EXCEPTION 'Work item is on hold. Resume it before submitting.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  SELECT * INTO v_stage FROM public.workflow_stages WHERE id = v_work.current_stage_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Work item has no current stage' USING ERRCODE = '22023';
+  END IF;
+
+  SELECT multi_owner_behavior INTO v_multi_mode
+  FROM public.workflow_templates WHERE id = v_work.workflow_id;
+
+  -- ---- 1. VALIDATE -------------------------------------------------------
+  -- The caller must actually hold this work: an open task, or be the
+  -- assignee/owner. A STATUS_CONTROLLER / ADMIN (public.can_change_status())
+  -- is exempt, mirroring the exemption enforce_status_change_permission()
+  -- already gives approve_work_item and request_changes (0015) — moving work
+  -- that is neither theirs nor at their gate is exactly what that role is for.
+  SELECT * INTO v_task FROM public.tasks
+  WHERE work_item_id = p_work_item_id
+    AND assignee_id = v_actor
+    AND closed_at IS NULL
+  LIMIT 1;
+
+  IF NOT FOUND
+     AND v_work.current_assignee_id IS DISTINCT FROM v_actor
+     AND v_work.owner_id IS DISTINCT FROM v_actor
+     AND NOT EXISTS (
+       SELECT 1 FROM public.work_item_owners
+       WHERE work_item_id = p_work_item_id AND user_id = v_actor
+     )
+     AND NOT public.can_change_status()
+  THEN
+    RAISE EXCEPTION 'You do not hold this work item' USING ERRCODE = '42501';
+  END IF;
+
+  IF v_stage.requires_attachment THEN
+    SELECT COUNT(*) INTO v_missing_files
+    FROM public.files
+    WHERE work_item_id = p_work_item_id
+      AND deleted_at IS NULL
+      AND (stage_id = v_stage.id OR stage_id IS NULL);
+
+    IF v_missing_files = 0 THEN
+      RAISE EXCEPTION 'Stage "%" requires at least one attachment', v_stage.name
+        USING ERRCODE = '22023';
+    END IF;
+  END IF;
+
+  -- ---- 2. RECORD THE SUBMISSION (append-only) ----------------------------
+  v_submission_no := COALESCE(v_work.submission_count, 0) + 1;
+
+  INSERT INTO public.submissions (
+    work_item_id, task_id, stage_id, submission_number, submitted_by, notes, snapshot
+  ) VALUES (
+    p_work_item_id, v_task.id, v_stage.id, v_submission_no, v_actor, p_notes,
+    jsonb_build_object(
+      'status', v_work.status,
+      'stage_id', v_work.current_stage_id,
+      'stage_name', v_stage.name,
+      'assignee_id', v_work.current_assignee_id,
+      'priority', v_work.priority,
+      'stage_deadline', v_work.stage_deadline
+    )
+  ) RETURNING id INTO v_submission_id;
+
+  IF p_file_ids IS NOT NULL THEN
+    UPDATE public.files
+    SET submission_id = v_submission_id
+    WHERE id = ANY(p_file_ids) AND work_item_id = p_work_item_id;
+  END IF;
+
+  -- Close this person's task
+  IF v_task.id IS NOT NULL THEN
+    UPDATE public.tasks
+    SET status = 'SUBMITTED', closed_at = NOW(), closed_reason = 'Submitted for next stage'
+    WHERE id = v_task.id;
+  END IF;
+
+  INSERT INTO public.activity_log (work_item_id, task_id, actor_id, action, detail)
+  VALUES (p_work_item_id, v_task.id, v_actor, 'SUBMITTED',
+          jsonb_build_object('stage', v_stage.name, 'submission_number', v_submission_no,
+                             'notes', p_notes));
+
+  -- ---- 3. MULTI-OWNER GATE ----------------------------------------------
+  -- PARALLEL work only advances once every collaborator has submitted.
+  IF v_multi_mode = 'PARALLEL' THEN
+    UPDATE public.work_item_owners
+    SET submission_status = 'SUBMITTED', submitted_at = NOW()
+    WHERE work_item_id = p_work_item_id AND user_id = v_actor;
+
+    SELECT COUNT(*) INTO v_pending_total
+    FROM public.work_item_owners
+    WHERE work_item_id = p_work_item_id AND submission_status = 'PENDING';
+
+    IF v_pending_total > 0 THEN
+      UPDATE public.work_items
+      SET status = 'SUBMITTED',
+          substatus = format('Waiting on %s more collaborator(s)', v_pending_total),
+          submission_count = v_submission_no
+      WHERE id = p_work_item_id;
+
+      -- Nudge whoever is still holding it
+      INSERT INTO public.notifications (recipient_id, work_item_id, type, subject, body, action_url)
+      SELECT o.user_id, p_work_item_id, 'ASSIGNMENT',
+             format('Still awaiting your submission: %s', v_work.name),
+             format('%s has submitted. This work advances once all collaborators submit.',
+                    (SELECT full_name FROM public.users WHERE id = v_actor)),
+             '/work/' || p_work_item_id
+      FROM public.work_item_owners o
+      WHERE o.work_item_id = p_work_item_id AND o.submission_status = 'PENDING';
+
+      RETURN jsonb_build_object(
+        'advanced', FALSE,
+        'reason', 'awaiting_collaborators',
+        'pending_collaborators', v_pending_total,
+        'submission_id', v_submission_id
+      );
+    END IF;
+  END IF;
+
+  -- SEQUENTIAL hands to the next collaborator in order before leaving the stage.
+  IF v_multi_mode = 'SEQUENTIAL' THEN
+    UPDATE public.work_item_owners
+    SET submission_status = 'SUBMITTED', submitted_at = NOW()
+    WHERE work_item_id = p_work_item_id AND user_id = v_actor;
+
+    SELECT o.user_id INTO v_next_assignee
+    FROM public.work_item_owners o
+    WHERE o.work_item_id = p_work_item_id
+      AND o.submission_status = 'PENDING'
+    ORDER BY o.sequence_order NULLS LAST, o.assigned_at
+    LIMIT 1;
+
+    IF v_next_assignee IS NOT NULL THEN
+      v_next_deadline := public.compute_stage_deadline(v_stage.id, v_work.priority);
+
+      INSERT INTO public.tasks (
+        work_item_id, stage_id, assignee_id, assigned_by, title, instructions,
+        action_type, priority, due_date
+      ) VALUES (
+        p_work_item_id, v_stage.id, v_next_assignee, v_actor,
+        format('%s — %s', v_work.name, v_stage.name),
+        p_notes, 'COMPLETE_STAGE', v_work.priority, v_next_deadline
+      ) RETURNING id INTO v_new_task_id;
+
+      UPDATE public.work_items
+      SET current_assignee_id = v_next_assignee,
+          pending_with_id     = v_next_assignee,
+          pending_with_label  = NULL,
+          status              = 'IN_PROGRESS',
+          stage_deadline      = v_next_deadline,
+          submission_count    = v_submission_no,
+          handoff_at          = NOW(),
+          handoff_by          = v_actor
+      WHERE id = p_work_item_id;
+
+      INSERT INTO public.activity_log (work_item_id, task_id, actor_id, action, from_value, to_value)
+      VALUES (p_work_item_id, v_new_task_id, v_actor, 'ASSIGNED',
+              (SELECT full_name FROM public.users WHERE id = v_actor),
+              (SELECT full_name FROM public.users WHERE id = v_next_assignee));
+
+      INSERT INTO public.notifications (recipient_id, work_item_id, task_id, type, subject, body, action_url)
+      VALUES (v_next_assignee, p_work_item_id, v_new_task_id, 'ASSIGNMENT',
+              format('Your turn: %s', v_work.name),
+              format('Handed to you at stage %s.', v_stage.name),
+              '/work/' || p_work_item_id);
+
+      RETURN jsonb_build_object(
+        'advanced', FALSE,
+        'reason', 'sequential_handoff',
+        'next_assignee_id', v_next_assignee,
+        'task_id', v_new_task_id
+      );
+    END IF;
+  END IF;
+
+  -- ---- 4. MOVE STAGE -----------------------------------------------------
+  v_trigger := public.resolve_submit_trigger(v_stage.id, v_work.po_required);
+
+  SELECT t.to_stage_id, TRUE INTO v_next_stage_id, v_transition_found
+  FROM public.workflow_transitions t
+  WHERE t.from_stage_id = v_stage.id
+    AND t.trigger_condition = v_trigger
+    AND t.is_active
+  LIMIT 1;
+
+  IF NOT COALESCE(v_transition_found, FALSE) THEN
+    RAISE EXCEPTION 'No % transition configured out of stage "%"', v_trigger, v_stage.name
+      USING ERRCODE = '22023',
+            HINT = 'Add a workflow_transitions row for this stage.';
+  END IF;
+
+  -- End of workflow
+  IF v_next_stage_id IS NULL THEN
+    UPDATE public.work_items
+    SET status = 'COMPLETED',
+        previous_stage_id = v_stage.id,
+        current_stage_id  = NULL,
+        current_assignee_id = NULL,
+        pending_with_id   = NULL,
+        pending_with_label= NULL,
+        stage_deadline    = NULL,
+        submission_count  = v_submission_no,
+        completed_at      = NOW(),
+        handoff_at        = NOW(),
+        handoff_by        = v_actor
+    WHERE id = p_work_item_id;
+
+    INSERT INTO public.activity_log (work_item_id, actor_id, action, from_value, to_value)
+    VALUES (p_work_item_id, v_actor, 'COMPLETED', v_stage.name, NULL);
+
+    RETURN jsonb_build_object('advanced', TRUE, 'completed', TRUE,
+                              'submission_id', v_submission_id);
+  END IF;
+
+  SELECT * INTO v_next_stage FROM public.workflow_stages WHERE id = v_next_stage_id;
+
+  -- ---- 5. IDENTIFY NEXT ASSIGNEE ----------------------------------------
+  v_next_assignee := public.resolve_next_assignee(p_work_item_id, v_next_stage_id);
+  v_next_deadline := public.compute_stage_deadline(v_next_stage_id, v_work.priority);
+
+  v_action_type := CASE
+    WHEN v_next_stage.requires_approval THEN 'APPROVE'
+    ELSE 'COMPLETE_STAGE'
+  END;
+
+  -- A workflow can end two ways: a transition pointing at nothing (handled
+  -- above), or landing on a stage flagged is_terminal. The 11-stage flow uses
+  -- the second form because "Completed" is a real stage users need to see in
+  -- the progress tracker -- without this it would sit there as IN_PROGRESS.
+  v_next_status := CASE
+    WHEN v_next_stage.is_terminal       THEN 'COMPLETED'
+    WHEN v_next_stage.requires_approval THEN 'PENDING'
+    WHEN v_next_assignee IS NULL        THEN 'PENDING'
+    ELSE 'IN_PROGRESS'
+  END;
+
+  -- ---- 6. CREATE NEXT TASK ----------------------------------------------
+  -- No task on a terminal stage: there is nothing left for anyone to do.
+  IF v_next_assignee IS NOT NULL AND NOT v_next_stage.is_terminal THEN
+    INSERT INTO public.tasks (
+      work_item_id, stage_id, assignee_id, assigned_by, title, instructions,
+      action_type, priority, due_date
+    ) VALUES (
+      p_work_item_id, v_next_stage_id, v_next_assignee, v_actor,
+      format('%s — %s', v_work.name, v_next_stage.name),
+      p_notes, v_action_type, v_work.priority, v_next_deadline
+    ) RETURNING id INTO v_new_task_id;
+  END IF;
+
+  -- Reset collaborator submission flags for the new stage
+  UPDATE public.work_item_owners
+  SET submission_status = 'PENDING', submitted_at = NULL
+  WHERE work_item_id = p_work_item_id;
+
+  UPDATE public.work_items
+  SET previous_stage_id  = v_stage.id,
+      current_stage_id   = v_next_stage_id,
+      -- Finished work is pending with nobody. Leaving an assignee on a
+      -- terminal stage would keep it sitting in that person's My Work queue
+      -- forever.
+      current_assignee_id= CASE WHEN v_next_stage.is_terminal THEN NULL ELSE v_next_assignee END,
+      pending_with_id    = CASE WHEN v_next_stage.is_terminal THEN NULL ELSE v_next_assignee END,
+      pending_with_label = CASE
+                             WHEN v_next_stage.is_terminal THEN NULL
+                             WHEN v_next_assignee IS NULL   THEN 'unassigned'
+                             ELSE NULL END,
+      status             = v_next_status,
+      substatus          = NULL,
+      approval_required  = v_next_stage.requires_approval,
+      approval_status    = CASE WHEN v_next_stage.requires_approval
+                                THEN 'PENDING' ELSE approval_status END,
+      stage_deadline     = CASE WHEN v_next_stage.is_terminal THEN NULL ELSE v_next_deadline END,
+      submission_count   = v_submission_no,
+      completed_at       = CASE WHEN v_next_stage.is_terminal THEN NOW() ELSE completed_at END,
+      handoff_at         = NOW(),
+      handoff_by         = v_actor
+  WHERE id = p_work_item_id;
+
+  -- ---- 7. ACTIVITY LOG ---------------------------------------------------
+  INSERT INTO public.activity_log (work_item_id, task_id, actor_id, action, from_value, to_value, detail)
+  VALUES (p_work_item_id, v_new_task_id, v_actor, 'STAGE_CHANGED',
+          v_stage.name, v_next_stage.name,
+          jsonb_build_object('trigger', v_trigger, 'submission_id', v_submission_id));
+
+  IF v_next_assignee IS NOT NULL THEN
+    INSERT INTO public.activity_log (work_item_id, task_id, actor_id, action, to_value)
+    VALUES (p_work_item_id, v_new_task_id, v_actor, 'ASSIGNED',
+            (SELECT full_name FROM public.users WHERE id = v_next_assignee));
+  ELSE
+    INSERT INTO public.activity_log (work_item_id, actor_id, action, detail)
+    VALUES (p_work_item_id, v_actor, 'UNASSIGNED',
+            jsonb_build_object('reason', 'no approval authority or owner configured',
+                               'stage', v_next_stage.name));
+  END IF;
+
+  -- ---- 8. NOTIFY ---------------------------------------------------------
+  IF v_next_assignee IS NOT NULL THEN
+    INSERT INTO public.notifications (recipient_id, work_item_id, task_id, type, subject, body, action_url)
+    VALUES (
+      v_next_assignee, p_work_item_id, v_new_task_id,
+      CASE WHEN v_next_stage.requires_approval THEN 'APPROVAL_REQUIRED' ELSE 'ASSIGNMENT' END,
+      format('%s: %s', CASE WHEN v_next_stage.requires_approval
+                            THEN 'Approval needed' ELSE 'New work assigned' END, v_work.name),
+      format('Stage: %s. %s',
+             v_next_stage.name,
+             COALESCE('Due ' || v_next_deadline::TEXT, 'No due date set')),
+      '/work/' || p_work_item_id
+    );
+  END IF;
+
+  RETURN jsonb_build_object(
+    'advanced', TRUE,
+    'completed', FALSE,
+    'from_stage', v_stage.name,
+    'to_stage', v_next_stage.name,
+    'trigger', v_trigger,
+    'next_assignee_id', v_next_assignee,
+    'task_id', v_new_task_id,
+    'stage_deadline', v_next_deadline,
+    'submission_id', v_submission_id
+  );
+END;
+$$;
+
+
+-- ####### 0022_status_controller_edit_override.sql #######
+
+-- ============================================================================
+-- 0022_status_controller_edit_override.sql
+--   Wire the STATUS_CONTROLLER / ADMIN change_status override into the RLS
+--   layer that actually gates row access, not just the plpgsql trigger.
+-- ============================================================================
+-- Idempotent, like every migration before it. Safe to run twice.
+--
+-- 0015 added public.can_change_status() and an early-return for it inside
+-- enforce_status_change_permission() (the BEFORE UPDATE trigger on
+-- work_items), so a controller's UPDATE is never blocked by the "reserved
+-- action" checks that stop everyone else. That made it LOOK like a
+-- STATUS_CONTROLLER could act on any work_item -- but a Postgres RLS UPDATE
+-- policy's USING clause is checked before a trigger ever runs, and
+-- `SELECT ... FOR UPDATE` is checked against the UPDATE policy too, not just
+-- SELECT. public.can_edit_work_item() -- the USING/WITH CHECK clause on
+-- work_items_update (0006) -- was never given the same exception, so:
+--
+--   * approve_work_item() and request_changes() (0007), and
+--     submit_for_next_stage() after 0021,
+--   * and any direct work_items UPDATE from the client,
+--
+-- all still open with `SELECT ... FOR UPDATE` (or run their final UPDATE)
+-- against a row a plain STATUS_CONTROLLER cannot see through can_edit_work_item
+-- -- so it silently returns zero rows / "Work item not found" before the
+-- trigger's can_change_status() bypass is ever reached. This has been true
+-- since 0015 shipped; it was never exercised by a real, non-admin controller
+-- in the test suite, so it went unnoticed. Confirmed directly: a user who is
+-- ONLY STATUS_CONTROLLER (not ADMIN or WORKFLOW_MANAGER, not the item's
+-- owner/assignee/task-holder) gets "Work item not found" from
+-- approve_work_item() today, even though enforce_status_change_permission()
+-- would have let the change through.
+--
+-- Fix: can_edit_work_item() gains the same public.can_change_status()
+-- exception the trigger already grants. This does not widen what a
+-- controller may change (enforce_status_change_permission() already permits
+-- a change_status holder to update any field, unconditionally -- see its own
+-- `IF public.can_change_status() THEN RETURN NEW; END IF;`), it only lets
+-- that already-granted permission actually reach the row.
+--
+-- `SELECT ... FOR UPDATE` under RLS is gated by the SELECT policy's USING
+-- clause AND the applicable command's (UPDATE) USING clause together -- both
+-- must pass, not just one -- so can_see_work_item() (0004, the SELECT policy)
+-- needs the identical exception, or a controller's row is filtered out
+-- before can_edit_work_item() is even consulted. Confirmed by testing both
+-- functions independently against the same row for a plain controller: fixing
+-- only can_edit_work_item() left `SELECT ... FOR UPDATE` still returning zero
+-- rows until can_see_work_item() got the same exception.
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION public.can_see_work_item(p_work_item_id UUID)
+RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT
+    public.has_role(ARRAY['ADMIN','WORKFLOW_MANAGER','COORDINATOR'])
+    OR public.can_change_status()
+    OR EXISTS (
+      SELECT 1 FROM public.work_items w
+      WHERE w.id = p_work_item_id
+        AND (
+          w.owner_id = auth.uid()
+          OR w.current_assignee_id = auth.uid()
+          OR w.pending_with_id = auth.uid()
+          OR w.requester_id = auth.uid()
+          OR w.created_by = auth.uid()
+        )
+    )
+    OR EXISTS (
+      SELECT 1 FROM public.work_item_owners o
+      WHERE o.work_item_id = p_work_item_id AND o.user_id = auth.uid()
+    )
+    OR EXISTS (
+      SELECT 1 FROM public.tasks t
+      WHERE t.work_item_id = p_work_item_id AND t.assignee_id = auth.uid()
+    );
+$$;
+
+CREATE OR REPLACE FUNCTION public.can_edit_work_item(p_work_item_id UUID)
+RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT
+    public.has_role(ARRAY['ADMIN','WORKFLOW_MANAGER'])
+    OR public.can_change_status()
+    OR EXISTS (
+      SELECT 1 FROM public.work_items w
+      WHERE w.id = p_work_item_id
+        AND (w.owner_id = auth.uid() OR w.current_assignee_id = auth.uid())
+    )
+    OR EXISTS (
+      SELECT 1 FROM public.tasks t
+      WHERE t.work_item_id = p_work_item_id
+        AND t.assignee_id = auth.uid()
+        AND t.closed_at IS NULL
+    );
+$$;

@@ -19,6 +19,8 @@ export interface BoardCard {
   /** Dragging it forward calls approve_work_item rather than submit_for_next_stage. */
   canApprove: boolean;
   canSubmit: boolean;
+  /** True when canDrag is TRUE only because of the change_status override, not because the viewer holds the card. */
+  isOverride: boolean;
 }
 
 export interface BoardColumn {
@@ -42,11 +44,22 @@ export interface BoardColumn {
  * check here wrong only means offering a drag that the server would refuse,
  * not a security gap.
  *
+ * canOverride mirrors public.can_change_status() (granted by the
+ * STATUS_CONTROLLER role / ADMIN's change_status permission — see migration
+ * 0015). Vijaya and Nirmal are meant to be able to move ANY card, not only
+ * ones they personally hold ("move work that is neither theirs nor at their
+ * gate" per 0015's own comment) — holdsIt alone was the whole gate here
+ * before, which is why the board only ever let them drag their own one or two
+ * cards. approve_work_item and request_changes already honour this override
+ * via the enforce_status_change_permission trigger; submit_for_next_stage
+ * needs the matching bypass added server-side (migration 0021) for the
+ * forward, non-approval-gated case to actually succeed once dragged.
+ *
  * On-hold work stays visible rather than disappearing from the board — a
  * board that quietly drops stuck work would make the team's blockers
  * invisible, which is the opposite of what a control tower is for — but it is
- * never draggable: resuming it is a deliberate action on the work item, not a
- * side effect of a drag.
+ * never draggable, even under the override: resuming it is a deliberate
+ * action on the work item, not a side effect of a drag.
  *
  * Columns are keyed by (workflow_id, current_stage_id), not by stage_order
  * alone. Legacy rows sit on a separate three-stage "Imported (unclassified)"
@@ -61,6 +74,7 @@ export function buildBoardColumns(
   rows: WorkItemRow[],
   heldWorkItemIds: Set<string>,
   userId: string | undefined,
+  canOverride = false,
 ): BoardColumn[] {
   const byStage = new Map<string, BoardColumn>();
 
@@ -73,9 +87,10 @@ export function buildBoardColumns(
       heldWorkItemIds.has(w.id) ||
       w.current_assignee_id === userId ||
       w.owner_id === userId;
+    const mayAct = holdsIt || canOverride;
 
-    const canApprove = holdsIt && !isOnHold && !!w.stage_requires_approval;
-    const canSubmit = holdsIt && !isOnHold && !w.stage_requires_approval;
+    const canApprove = mayAct && !isOnHold && !!w.stage_requires_approval;
+    const canSubmit = mayAct && !isOnHold && !w.stage_requires_approval;
 
     const card: BoardCard = {
       id: w.id,
@@ -94,6 +109,7 @@ export function buildBoardColumns(
       canDrag: canApprove || canSubmit,
       canApprove,
       canSubmit,
+      isOverride: !holdsIt && (canApprove || canSubmit),
     };
 
     const key = `${w.workflow_id ?? 'none'}::${w.current_stage_id ?? w.stage_name}`;

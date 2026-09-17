@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { getCurrentUser, canViewAllWork } from '@/lib/auth/roles';
+import { getCurrentUser, canViewAllWork, hasPermission } from '@/lib/auth/roles';
 import { BoardView } from '@/components/BoardView';
 import { buildBoardColumns } from '@/lib/workflow/board';
 import type { WorkItemRow } from '@/types/work';
@@ -43,7 +43,11 @@ export default async function BoardPage() {
   const heldIds = new Set(
     (myTasksRes.data ?? []).map((t) => t.work_item_id as string),
   );
-  const columns = buildBoardColumns(rows, heldIds, user?.id);
+  // STATUS_CONTROLLER (Vijaya, Nirmal) or ADMIN — may move any card, not only
+  // ones they personally hold. See board.ts's canOverride note and migration
+  // 0015/0021.
+  const canOverride = hasPermission(user, 'change_status');
+  const columns = buildBoardColumns(rows, heldIds, user?.id, canOverride);
 
   return (
     <div className="space-y-4">
@@ -53,9 +57,9 @@ export default async function BoardPage() {
         </Link>
         <h1 className="mt-2 text-xl font-semibold text-black">Board</h1>
         <p className="mt-1 max-w-2xl text-sm text-black">
-          Drag a card you hold into the next column to submit or approve it, or back a column to
-          request changes. Cards you don&rsquo;t currently hold, and work on hold, aren&rsquo;t
-          draggable.
+          {canOverride
+            ? 'Drag any card into the next column to submit or approve it, or back a column to request changes. Work on hold isn’t draggable — open it to resume first.'
+            : 'Drag a card you hold into the next column to submit or approve it, or back a column to request changes. Cards you don’t currently hold, and work on hold, aren’t draggable.'}
         </p>
       </div>
 

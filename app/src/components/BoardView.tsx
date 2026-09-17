@@ -117,8 +117,12 @@ export function BoardView({ columns }: { columns: BoardColumn[] }) {
                   title={
                     card.canDrag
                       ? card.canApprove
-                        ? 'Drag into the next column to approve, or back a column to request changes'
-                        : 'Drag into the next column to submit'
+                        ? card.isOverride
+                          ? 'Not yours, but you can drag it in as a status controller — into the next column to approve, or back a column to request changes'
+                          : 'Drag into the next column to approve, or back a column to request changes'
+                        : card.isOverride
+                          ? 'Not yours, but you can drag it in as a status controller — into the next column to submit'
+                          : 'Drag into the next column to submit'
                       : card.isOnHold
                         ? 'On hold — open the work item to resume it before moving it'
                         : 'This work is not with you right now, so it cannot be dragged'
