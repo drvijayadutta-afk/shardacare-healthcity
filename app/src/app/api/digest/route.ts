@@ -17,6 +17,12 @@ import {
  * Always returns the formatted text. That matters: until WhatsApp API
  * credentials exist, /digest renders this for one-tap pasting into the group,
  * so the 6pm message happens either way.
+ *
+ * If N8N_WEBHOOK_URL is set, the group text is also POSTed there -- an n8n
+ * workflow forwards it into the actual WhatsApp group. That indirection
+ * exists because Meta's own Business API cannot post to a group at all
+ * (only to individuals), so group delivery necessarily goes through an
+ * unofficial provider that lives in n8n, not in this app.
  */
 
 export const dynamic = 'force-dynamic';
@@ -89,6 +95,44 @@ export async function GET(req: Request) {
     }
   }
 
+  // Hand the group message off to n8n, which owns the actual WhatsApp-group
+  // delivery (Meta's own Business API cannot post to a group at all, so that
+  // side is necessarily an n8n workflow talking to an unofficial provider,
+  // not this app). Best-effort: a webhook outage should not fail the digest
+  // itself -- the /digest page and in-app notification above already cover
+  // delivery -- but the failure must be visible, not swallowed.
+  const n8nWebhookUrl = process.env.N8N_WEBHOOK_URL;
+  let n8n: { configured: boolean; ok?: boolean; error?: string } = { configured: false };
+
+  if (n8nWebhookUrl) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10_000);
+      const res = await fetch(n8nWebhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: digest.date,
+          counts: digest.totals ?? {},
+          items: digest.items.length,
+          groupText,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      n8n = res.ok
+        ? { configured: true, ok: true }
+        : { configured: true, ok: false, error: `n8n webhook returned ${res.status}` };
+    } catch (err) {
+      n8n = {
+        configured: true,
+        ok: false,
+        error: err instanceof Error ? err.message : 'n8n webhook request failed',
+      };
+    }
+    if (!n8n.ok) console.error('daily digest: n8n webhook failed', n8n.error);
+  }
+
   return Response.json({
     ok: true,
     date: digest.date,
@@ -104,6 +148,9 @@ export async function GET(req: Request) {
             'WHATSAPP_TOKEN / WHATSAPP_PHONE_NUMBER_ID are not set, so no direct ' +
             'messages were sent. The digest text below is ready to paste into the group.',
         },
+    n8n: n8nWebhookUrl
+      ? n8n
+      : { configured: false, note: 'N8N_WEBHOOK_URL is not set, so the group message was not forwarded.' },
     groupText,
   });
 }
