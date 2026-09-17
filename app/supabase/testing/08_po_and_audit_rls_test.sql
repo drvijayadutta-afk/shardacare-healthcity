@@ -1,8 +1,17 @@
 -- ============================================================================
 -- 08_po_and_audit_rls_test.sql — 0023_po_and_audit_rls_fixes.sql
---   Proves: (1) a plain user cannot self-attribute a PO request for a work
---   item they cannot see; (2) a pure STATUS_CONTROLLER can now update a PO
+--   Proves: (1) a plain user cannot self-attribute a PO request with no
+--   work_item_id at all; (2) a pure STATUS_CONTROLLER can now update a PO
 --   they did not raise; (3) activity_log refuses an arbitrary actor_id.
+--
+-- T1 originally also asserted that a stranger could not self-attribute a PO
+-- on a work item they had no connection to and could not SEE -- that stopped
+-- being true once 0025_work_visible_to_all.sql made every work item visible
+-- to every signed-in user (see that migration's own note: po_requests_insert
+-- was gated on visibility specifically to stop a blind insert, so making
+-- visibility universal makes that particular guard universally satisfied
+-- too, as an intended side effect, not a regression). T1 now asserts the new
+-- correct behavior instead of the old one.
 --
 -- Runs under SET ROLE authenticated, like 06 and 07 -- the postgres
 -- superuser session bypasses RLS entirely and would hide every one of these.
@@ -42,33 +51,37 @@ BEGIN
 
   INSERT INTO public.jobs (name, created_by) VALUES ('T8 job', v_holder) RETURNING id INTO v_job;
 
-  -- A work item v_stranger can see (holder), and one they cannot.
+  -- A work item v_stranger owns/holds, and one they have no connection to at
+  -- all (both are equally VISIBLE to v_stranger since 0025 -- the names
+  -- describe personal connection, not RLS visibility, which is universal now).
   INSERT INTO public.work_items (job_id, workflow_id, current_stage_id, name,
                                  owner_id, current_assignee_id, status, created_by)
-  VALUES (v_job, v_wf, v_stage, 'T8 visible to stranger via ownership',
+  VALUES (v_job, v_wf, v_stage, 'T8 owned/held by stranger',
           v_stranger, v_stranger, 'IN_PROGRESS', v_stranger)
   RETURNING id INTO v_visible_work;
 
   INSERT INTO public.work_items (job_id, workflow_id, current_stage_id, name,
                                  owner_id, current_assignee_id, status, created_by)
-  VALUES (v_job, v_wf, v_stage, 'T8 not visible to stranger',
+  VALUES (v_job, v_wf, v_stage, 'T8 no connection to stranger',
           v_holder, v_holder, 'IN_PROGRESS', v_holder)
   RETURNING id INTO v_hidden_work;
 
-  -- ---- T1: cannot self-attribute a PO on a work item you cannot see ------
+  -- ---- T1: CAN self-attribute a PO on a work item with no personal
+  -- connection at all -- work is universally visible since 0025, and
+  -- po_requests_insert's visibility requirement is satisfied for everyone
+  -- as a result. v_hidden_work has zero connection to v_stranger (not
+  -- owner, assignee, creator, or task-holder) -- this is exactly the case
+  -- that used to be refused. -----------------------------------------------
   PERFORM set_config('request.jwt.claim.sub', v_stranger::TEXT, TRUE);
   EXECUTE 'SET ROLE authenticated';
-  v_failed := FALSE;
-  BEGIN
-    INSERT INTO public.po_requests (work_item_id, vendor_name, amount, raised_by)
-    VALUES (v_hidden_work, 'Shady Vendor', 999999, v_stranger);
-  EXCEPTION WHEN insufficient_privilege THEN v_failed := TRUE;
-  END;
+  INSERT INTO public.po_requests (work_item_id, vendor_name, amount, raised_by)
+  VALUES (v_hidden_work, 'No personal connection to this item', 999999, v_stranger)
+  RETURNING id INTO v_po;
   EXECUTE 'RESET ROLE';
-  IF NOT v_failed THEN
-    RAISE EXCEPTION 'FAIL: a stranger raised a PO against a work item they cannot see';
+  IF v_po IS NULL THEN
+    RAISE EXCEPTION 'FAIL: a person could not raise a PO on work that is now universally visible';
   END IF;
-  RAISE NOTICE 'PASS  cannot self-attribute a PO on an invisible work item';
+  RAISE NOTICE 'PASS  can self-attribute a PO on a work item with no personal connection (0025: work is visible to everyone)';
 
   -- ---- T2: naming a NULL work_item_id is refused too (the blindest form of
   -- the old bypass) --------------------------------------------------------

@@ -91,9 +91,18 @@ export function hasPermission(user: CurrentUser | null, permission: string): boo
   return user.permissions.includes(permission);
 }
 
-/** Can this user see the management view rather than just their own queue? */
+/**
+ * Can this user see the management view rather than just their own queue?
+ *
+ * Every signed-in user, as of 0025 -- work is visible to the whole team, not
+ * just ADMIN/WORKFLOW_MANAGER/COORDINATOR. Kept as its own function, not a
+ * bare `!!user` inline, so the many call sites keep reading as an intent
+ * ("can view all work") rather than a coincidence, and because it still
+ * mirrors public.can_see_work_item() -- the actual RLS boundary -- the same
+ * way every other check in this file does.
+ */
 export function canViewAllWork(user: CurrentUser | null): boolean {
-  return hasRole(user, 'ADMIN', 'WORKFLOW_MANAGER', 'COORDINATOR');
+  return user !== null;
 }
 
 /**
