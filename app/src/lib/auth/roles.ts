@@ -36,11 +36,20 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return null;
 
-  const { data: profile } = await supabase
+  // user_roles has two FKs to users (user_id and assigned_by), so the
+  // embed is ambiguous without naming the constraint — PostgREST otherwise
+  // returns a "more than one relationship was found" error, which the
+  // destructure below silently drops, falling through to the "no profile"
+  // branch and making every signed-in user look role-less.
+  const { data: profile, error: profileError } = await supabase
     .from('users')
-    .select('id, email, full_name, user_roles(roles(name, permissions))')
+    .select('id, email, full_name, user_roles!user_roles_user_id_fkey(roles(name, permissions))')
     .eq('id', user.id)
     .single();
+
+  if (profileError) {
+    console.error('getCurrentUser: failed to load profile/roles', profileError);
+  }
 
   if (!profile) {
     // Authenticated but no profile row. The handle_new_auth_user trigger

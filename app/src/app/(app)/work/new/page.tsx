@@ -15,7 +15,7 @@ export default async function NewWorkPage() {
   const supabase = await createClient();
   const { data } = await supabase
     .from('users')
-    .select('id, full_name, user_roles(roles(name))')
+    .select('id, full_name, user_roles!user_roles_user_id_fkey(roles(name))')
     .eq('is_active', true)
     .order('full_name');
 

@@ -87,7 +87,7 @@ export default async function ControlTowerPage() {
     .order('effective_due_date', { ascending: true, nullsFirst: false });
 
   const roster = await supabase.from('users')
-    .select('id, full_name, user_roles(roles(name))')
+    .select('id, full_name, user_roles!user_roles_user_id_fkey(roles(name))')
     .eq('is_active', true).order('full_name');
 
   // Every query is checked, not just the metrics one. A failing breakdown RPC
