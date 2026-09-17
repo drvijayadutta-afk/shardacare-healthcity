@@ -60,6 +60,7 @@ psql -f app/supabase/testing/04_admin_controls_test.sql  # add/reassign/delete-t
 psql -f app/supabase/testing/05_permissions_and_po_test.sql  # status control, parallel PO, tags, creative chain
 psql -f app/supabase/testing/06_job_creation_test.sql  # only ADMIN may create jobs/work items
 psql -f app/supabase/testing/07_status_controller_override_test.sql  # controller/admin can act on work that isn't theirs, RLS included
+psql -f app/supabase/testing/08_po_and_audit_rls_test.sql  # PO self-attribution closed, controller PO override, audit trail can't be forged
 ```
 
 Run against the same database, in this order — 02 seeds and restores approval

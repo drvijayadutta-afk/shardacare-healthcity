@@ -81,8 +81,10 @@ export async function recordUpload(
 
   if (error) return fail(describe(error.code, error.message));
 
+  const { data: { user } } = await supabase.auth.getUser();
   await supabase.from('activity_log').insert({
     work_item_id: workItemId,
+    actor_id: user?.id ?? null,
     action: 'FILE_ATTACHED',
     to_value: file.fileName,
   });
@@ -136,26 +138,33 @@ export async function removeFile(
 ): Promise<ActionResult> {
   const supabase = await createClient();
 
-  const { data: row } = await supabase
-    .from('files').select('storage_path, file_name')
-    .eq('id', fileId).maybeSingle();
-
-  const { error } = await supabase
+  const { data: row, error } = await supabase
     .from('files')
     .update({ deleted_at: new Date().toISOString() })
-    .eq('id', fileId);
+    .eq('id', fileId)
+    .select('storage_path, file_name')
+    .maybeSingle();
 
   if (error) return fail(describe(error.code, error.message));
+  if (!row) {
+    // RLS silently drops rows the caller isn't allowed to touch rather than
+    // erroring — 0 rows back means files_update refused this, not that the
+    // file was already gone. Reporting success here would be a lie: nothing
+    // happened, and the object is still live in storage.
+    return fail('You do not have permission to remove this file.');
+  }
 
-  if (row?.storage_path) {
+  if (row.storage_path) {
     // Best effort. If the object survives, the row is already hidden.
     await supabase.storage.from(BUCKET).remove([row.storage_path]);
   }
 
+  const { data: { user } } = await supabase.auth.getUser();
   await supabase.from('activity_log').insert({
     work_item_id: workItemId,
+    actor_id: user?.id ?? null,
     action: 'FILE_REMOVED',
-    to_value: row?.file_name ?? null,
+    to_value: row.file_name ?? null,
   });
 
   refresh(workItemId);

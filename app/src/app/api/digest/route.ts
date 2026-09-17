@@ -60,11 +60,16 @@ export async function GET(req: Request) {
   const groupText = formatForWhatsApp(digest, `${appUrl}/work?filter=active`);
 
   // In-app notification for everyone, always. This is the delivery that cannot
-  // fail for want of a third-party credential.
-  const { data: notified } = await supabase.rpc('record_digest_sent', {
+  // fail for want of a third-party credential -- so if it errors (e.g.
+  // DIGEST_SECRET has drifted from app_settings across environments), that
+  // must surface rather than be reported as a quiet "0 notified".
+  const { data: notified, error: notifyError } = await supabase.rpc('record_digest_sent', {
     p_secret: digestSecret,
     p_summary: groupText,
   });
+  if (notifyError) {
+    console.error('daily digest: record_digest_sent failed', notifyError);
+  }
 
   // Direct WhatsApp, per person, where that is configured.
   const cfg = readWhatsAppConfig();
@@ -90,6 +95,7 @@ export async function GET(req: Request) {
     counts: digest.totals ?? {},
     items: digest.items.length,
     inAppNotified: notified ?? 0,
+    inAppNotifyError: notifyError?.message ?? null,
     whatsapp: cfg
       ? { configured: true, sent, failed }
       : {
